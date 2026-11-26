@@ -372,7 +372,7 @@
       if (this.wave % 5 === 0) {
         const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + 999));
         this.bots.push({ id: 'bot99', name: this.wave >= 10 ? '💀 زعيم الانفجار' : '👑 الزعيم', boss: true, boss2: this.wave >= 10, max: this.wave >= 10 ? 450 : 300, nextBurst: nowB + 3500, x: p.x, y: p.y, hp: this.wave >= 10 ? 450 : 300, alive: true, angle: 0, lastFire: nowB + 1500, respawnAt: 0, phase: 0, color: 1 });
-        this.onFeed(this.wave >= 10 ? '💀 زعيم الانفجار! ٤٥٠ صحة وبيطلق دايرة طلقات كل ٤ ثواني' : '👑 زعيم ظهر! ٣٠٠ صحة وبيضرب ٣ طلقات'); Sfx.horn();
+        this.onFeed(this.wave >= 10 ? '💀 زعيم الانفجار! دايرة طلقات' : '👑 زعيم ظهر! ٣٠٠ صحة وبيضرب ٣ طلقات'); Sfx.horn();
       }
       for (let k = 0; k < n; k++) {
         const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 77));
