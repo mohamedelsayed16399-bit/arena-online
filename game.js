@@ -42,6 +42,7 @@
     endsAt: 0,
     respawnAt: 0,
     pickups: {}, lastPickupSpawn: 0,
+    muzzleUntil: 0, hitFlashUntil: 0, lastHpShown: null,
     rafId: null, lastTs: 0,
     onRoundEnd: null, onFeed: null, onHud: null,
     seed: 1,
@@ -67,6 +68,7 @@
       const p = this.freeSpot(rnd);
       this.myX = p.x; this.myY = p.y; this.myAngle = 0;
       this.myHp = MAX_HP; this.myAlive = true;
+      this.lastHpShown = MAX_HP; this.muzzleUntil = 0; this.hitFlashUntil = 0;
       this.writeSelf(true);
       this.lastTs = performance.now();
       const loop = (ts) => {
@@ -131,6 +133,7 @@
         const u = s.key, v = s.val();
         if (u === this.me.uid) { this.applySelf(v, false); return; }
         if (this.players[u]) {
+          if (v.hp !== undefined && v.hp < (this.players[u].hp || 0)) this.players[u].flashUntil = performance.now() + 200;
           this.players[u].tx = v.x; this.players[u].ty = v.y;
           Object.assign(this.players[u], v);
         }
@@ -215,6 +218,7 @@
       const dx = Math.cos(this.myAngle), dy = Math.sin(this.myAngle);
       const bx = this.myX + dx * (PLAYER_R + 6), by = this.myY + dy * (PLAYER_R + 6);
       this.bullets.push({ id, uid: this.me.uid, x: bx, y: by, dx, dy, age: 0 });
+      this.muzzleUntil = performance.now() + 70;
       this.db.ref('rooms/' + this.roomCode + '/events').push({
         t: 'shoot', id, uid: this.me.uid,
         x: Math.round(bx), y: Math.round(by),
@@ -470,6 +474,10 @@
       document.getElementById('hud-kills').textContent = this.kills || 0;
       document.getElementById('hud-deaths').textContent = this.deaths || 0;
       document.getElementById('hud-hp-fill').style.width = Math.max(0, this.myHp) + '%';
+      // وميض الإصابة لما دمّي يقل
+      if (this.lastHpShown !== null && this.myHp < this.lastHpShown) this.hitFlashUntil = performance.now() + 220;
+      this.lastHpShown = this.myHp;
+
       let aliveCount = this.myAlive ? 1 : 0;
       for (const uid in this.players) if (this.players[uid].alive) aliveCount++;
       const aliveEl = document.getElementById('hud-alive-n');
@@ -568,6 +576,20 @@
           ctx.moveTo(x, y);
           ctx.lineTo(x + Math.cos(this.myAngle) * 46, y + Math.sin(this.myAngle) * 46);
           ctx.stroke();
+          // وميض الفوهة لحظة الضرب
+          if (performance.now() < this.muzzleUntil) {
+            const fx = x + Math.cos(this.myAngle) * (PLAYER_R + 12), fy = y + Math.sin(this.myAngle) * (PLAYER_R + 12);
+            ctx.fillStyle = '#ffd32a';
+            ctx.shadowColor = '#ffd32a'; ctx.shadowBlur = 14;
+            ctx.beginPath(); ctx.arc(fx, fy, 8, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
+          }
+        }
+        // وميض إصابة اللاعبين التانيين
+        if (!isMe && performance.now() < (p.flashUntil || 0)) {
+          ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+          ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(x, y, PLAYER_R + 6, 0, Math.PI * 2); ctx.stroke();
         }
         // الجسم
         ctx.fillStyle = color;
@@ -602,6 +624,13 @@
       drawPlayer(this.me.uid, { name: this.me.name, avatar: this.me.avatar, color: this.me.color }, true);
 
       ctx.restore();
+
+      // وميض أحمر لما اتضرب
+      if (performance.now() < this.hitFlashUntil) {
+        ctx.fillStyle = 'rgba(255,71,87,0.18)';
+        ctx.fillRect(0, 0, innerWidth, innerHeight);
+      }
+
       this.drawMinimap();
     },
 
