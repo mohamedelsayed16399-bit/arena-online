@@ -50,7 +50,7 @@
     respawnAt: 0,
     pickups: {}, lastPickupSpawn: 0,
     muzzleUntil: 0, hitFlashUntil: 0, lastHpShown: null,
-    speedUntil: 0, shieldUntil: 0, protectedUntil: 0, weaponUntil: 0, weapon: '', fx: [], dashUntil: 0, dashCd: 0, rs: { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }, barrels: [], wave: 1, waveAt: 0, waveBanner: null, gren: [], grenCd: 0, rings: [], gcount: 0, dashX: 0, dashY: 0, mode: 'classic', zpts: 0, zoneAcc: 0, zoneCache: null, bots: [], botCheckAt: 0, botAnnounced: false, shakeUntil: 0, specIdx: 0, lastBurst: 0,
+    speedUntil: 0, shieldUntil: 0, protectedUntil: 0, weaponUntil: 0, weapon: '', fx: [], dashUntil: 0, dashCd: 0, rs: { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }, barrels: [], wave: 1, waveAt: 0, waveBanner: null, gren: [], grenCd: 0, rings: [], gcount: 0, dashX: 0, dashY: 0, mode: 'classic', zpts: 0, zoneAcc: 0, zoneCache: null, bots: [], botCheckAt: 0, botAnnounced: false, shakeUntil: 0, specIdx: 0, lastBurst: 0, up: { dmg: 0, spd: 0, rate: 0, steal: 0, arm: 0 }, upDone: false, pickWait: false,
     rafId: null, lastTs: 0,
     onRoundEnd: null, onFeed: null, onHud: null,
     seed: 1,
@@ -80,7 +80,7 @@
       this.myX = p.x; this.myY = p.y; this.myAngle = 0;
       this.myHp = MAX_HP; this.myAlive = true;
       this.lastHpShown = MAX_HP; this.muzzleUntil = 0; this.hitFlashUntil = 0;
-      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.rs = { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }; this.barrels = []; this.wave = 1; this.waveAt = 0; this.waveBanner = null; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.specIdx = 0;
+      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.rs = { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }; this.barrels = []; this.wave = 1; this.waveAt = 0; this.waveBanner = null; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.specIdx = 0; this.up = { dmg: 0, spd: 0, rate: 0, steal: 0, arm: 0 }; this.upDone = false; this.pickWait = false; this.hideUpgrades();
       this.protectedUntil = performance.now() + 2000; // حماية بداية الجولة
       this.writeSelf(true);
       this.onFeed('🗺️ ساحة ' + this.theme.name);
@@ -364,6 +364,35 @@
       }
     },
 
+    showUpgrades() {
+      const ALL = [
+        { k: 'dmg', i: '🔥', t: 'ضرر أعلى', d: '+٢٥٪ ضرر طلقاتك' },
+        { k: 'spd', i: '👟', t: 'سرعة', d: '+١٠٪ سرعة حركة' },
+        { k: 'rate', i: '⚡', t: 'تصويب أسرع', d: '-١٥٪ وقت بين الطلقات' },
+        { k: 'steal', i: '🩸', t: 'سرقة صحة', d: 'كل إصابة بتشفيك' },
+        { k: 'arm', i: '🛡️', t: 'دروع', d: '-١٨٪ ضرر من البوتات' }
+      ];
+      const pick = ALL.slice().sort(() => Math.random() - 0.5).slice(0, 3);
+      let el = document.getElementById('upgrade-picker');
+      if (!el) { el = document.createElement('div'); el.id = 'upgrade-picker'; document.body.appendChild(el); }
+      el.innerHTML = '<div class="up-title">🎁 اختار ترقية للموجة الجاية</div><div class="up-row"></div>';
+      const row = el.querySelector('.up-row');
+      const choose = (u) => {
+        if (!this.pickWait) return;
+        this.up[u.k]++; this.pickWait = false; this.hideUpgrades();
+        this.onFeed(u.i + ' ترقية: ' + u.t + ' (مستوى ' + this.up[u.k] + ')'); Sfx.kill();
+      };
+      this._upChoose = pick.map((u) => () => choose(u));
+      pick.forEach((u, n) => {
+        const b = document.createElement('button'); b.className = 'up-card';
+        b.innerHTML = '<span class="up-i">' + u.i + '</span><b>' + u.t + '</b><small>' + u.d + ' (' + (this.up[u.k] + 1) + ')</small><em>' + (n + 1) + '</em>';
+        b.onclick = this._upChoose[n]; row.appendChild(b);
+      });
+      el.style.display = 'flex';
+      if (!this._upKey) { this._upKey = (e) => { if (this.pickWait && this._upChoose && e.key >= '1' && e.key <= '3') { const f = this._upChoose[+e.key - 1]; if (f) f(); } }; window.addEventListener('keydown', this._upKey); }
+    },
+    hideUpgrades() { const el = document.getElementById('upgrade-picker'); if (el) el.style.display = 'none'; },
+
     spawnWave(nowB) {
       const n = Math.min(9, 2 + this.wave);
       this.bots = [];
@@ -371,8 +400,8 @@
       for (let k = 0; k < 6; k++) { const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 131 + 7)); this.barrels.push({ x: p.x, y: p.y, hp: 2, dead: false }); }
       if (this.wave % 5 === 0) {
         const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + 999));
-        this.bots.push({ id: 'bot99', name: this.wave >= 10 ? '💀 زعيم الانفجار' : '👑 الزعيم', boss: true, boss2: this.wave >= 10, max: this.wave >= 10 ? 450 : 300, nextBurst: nowB + 3500, x: p.x, y: p.y, hp: this.wave >= 10 ? 450 : 300, alive: true, angle: 0, lastFire: nowB + 1500, respawnAt: 0, phase: 0, color: 1 });
-        this.onFeed(this.wave >= 10 ? '💀 زعيم الانفجار! دايرة طلقات' : '👑 زعيم ظهر! ٣٠٠ صحة وبيضرب ٣ طلقات'); Sfx.horn();
+        this.bots.push({ id: 'bot99', name: this.wave >= 15 ? '🌀 زعيم الشبح' : this.wave >= 10 ? '💀 زعيم الانفجار' : '👑 الزعيم', boss: true, boss2: this.wave >= 10 && this.wave < 15, boss3: this.wave >= 15, nextTp: nowB + 4500, max: this.wave >= 15 ? 600 : this.wave >= 10 ? 450 : 300, nextBurst: nowB + 3500, x: p.x, y: p.y, hp: this.wave >= 15 ? 600 : this.wave >= 10 ? 450 : 300, alive: true, angle: 0, lastFire: nowB + 1500, respawnAt: 0, phase: 0, color: 1 });
+        this.onFeed(this.wave >= 15 ? '🌀 زعيم الشبح! بيتنقل وبيستدعي أتباع' : this.wave >= 10 ? '💀 زعيم الانفجار! دايرة طلقات' : '👑 زعيم ظهر! ٣٠٠ صحة وبيضرب ٣ طلقات'); Sfx.horn();
       }
       for (let k = 0; k < n; k++) {
         const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 77));
@@ -448,7 +477,7 @@
       const rapid = this.weapon === 'rapid' && now < this.weaponUntil;
       const triple = this.weapon === 'triple' && now < this.weaponUntil;
       const shotgun = this.weapon === 'shotgun' && now < this.weaponUntil;
-      if (now - this.lastFire < (rapid ? 130 : shotgun ? 520 : FIRE_COOLDOWN) || !this.myAlive) return;
+      if (now - this.lastFire < (rapid ? 130 : shotgun ? 520 : FIRE_COOLDOWN) * Math.pow(0.85, this.up.rate) || !this.myAlive) return;
       this.lastFire = now; this.rs.shots++;
       const angs = shotgun ? [-0.4, -0.2, 0, 0.2, 0.4] : triple ? [-0.22, 0, 0.22] : [0];
       if (shotgun) { this.shakeUntil = Math.max(this.shakeUntil, now + 120); this.burst(this.myX + Math.cos(this.myAngle) * 30, this.myY + Math.sin(this.myAngle) * 30, '#ffa502', 10, 260); }
@@ -632,7 +661,7 @@
         const len = Math.hypot(mx, my);
         if (len > 0.01) {
           if (len > 1) { mx /= len; my /= len; }
-          const spd = dashing ? SPEED * 4.2 : performance.now() < this.speedUntil ? SPEED * 1.4 : SPEED;
+          const spd = dashing ? SPEED * 4.2 : performance.now() < this.speedUntil ? SPEED * 1.4 * (1 + 0.1 * this.up.spd) : SPEED * (1 + 0.1 * this.up.spd);
           let nx = this.myX + mx * spd * dt;
           let ny = this.myY + my * spd * dt;
           if (dashing && Math.random() < 0.7) this.burst(this.myX, this.myY, '#7bdff2', 2, 60);
@@ -717,14 +746,15 @@
           this.spawnWave(nowB);
           if (!this.botAnnounced) { this.botAnnounced = true; this.onFeed('🌊 انت لوحدك: وضع الموجات! اصمد قد ما تقدر'); this.waveBanner = { text: '🌊 الموجة ١', until: nowB + 2200 }; }
         } else if (humans > 0 && this.bots.length) {
-          this.bots = [];
+          this.bots = []; this.upDone = false; this.pickWait = false; this.hideUpgrades();
           this.onFeed('👥 لاعب حقيقي دخل: البوتات خرجت');
         }
       }
       if (this.bots.length && this.bots.every((q) => !q.alive)) {
         if (!this.waveAt) { this.waveAt = nowB + 2500; this.onFeed('🌊 الموجة ' + this.wave + ' خلصت! +٣٠ صحة'); Sfx.kill(); this.ach('wave', this.wave); try { const bw = +(localStorage.getItem('arena_bestwave') || 0); if (this.wave > bw) localStorage.setItem('arena_bestwave', String(this.wave)); } catch (err) { /* ignore */ } }
-        else if (nowB >= this.waveAt) {
-          this.wave++; this.waveAt = 0;
+        else if (nowB >= this.waveAt && !this.upDone) { this.upDone = true; this.pickWait = true; this.showUpgrades(); }
+        else if (nowB >= this.waveAt && !this.pickWait) {
+          this.wave++; this.waveAt = 0; this.upDone = false;
           if (this.myAlive) { this.myHp = Math.min(MAX_HP, this.myHp + 30); this.onHud(this.myHp); this.writeSelf(true); }
           this.spawnWave(nowB);
           this.waveBanner = { text: '🌊 الموجة ' + this.wave + ' (' + this.bots.length + ' بوتات)', until: nowB + 2400 };
@@ -755,6 +785,17 @@
           if (hd < hz.r) { bt.hp -= 12 * dt; if (Math.random() < 0.15) this.burst(bt.x, bt.y, '#ff6b35', 2, 100); if (bt.hp <= 0) { bt.alive = false; bt.respawnAt = performance.now() + 3000; this.burst(bt.x, bt.y, '#ffd32a', 28, 300); this.onFeed('🌋 الحمم قضت على ' + bt.name); break; } }
         }
         if (!bt.alive) continue;
+        if (bt.boss3 && nowB >= bt.nextTp && this.myAlive) {
+          bt.nextTp = nowB + 5000;
+          this.rings.push({ x: bt.x, y: bt.y, age: 0, life: 0.5, R: 80 }); this.burst(bt.x, bt.y, '#18dcff', 18, 260);
+          const ta = Math.random() * 6.283, tp = { x: clamp(this.myX + Math.cos(ta) * 320, 80, WORLD - 80), y: clamp(this.myY + Math.sin(ta) * 320, 80, WORLD - 80) };
+          if (!this.obstacles.some((o) => circleRect(tp.x, tp.y, PLAYER_R + 6, o))) { bt.x = tp.x; bt.y = tp.y; }
+          this.rings.push({ x: bt.x, y: bt.y, age: 0, life: 0.5, R: 80 }); this.burst(bt.x, bt.y, '#18dcff', 18, 260); Sfx.boom();
+          if (this.bots.filter((q) => q.alive).length < 12) {
+            for (let m = 0; m < 2; m++) { const sp = this.freeSpot(mulberry32((Date.now() & 0xffff) + m * 51)); this.bots.push({ id: 'botm' + Math.floor(nowB) + m, name: '👻 تابع', x: sp.x, y: sp.y, hp: 50, alive: true, angle: 0, lastFire: nowB + 1500, respawnAt: 0, phase: Math.random() * 6, color: 6 }); }
+            this.onFeed('🌀 الشبح استدعى تابعين!');
+          }
+        }
         if (bt.boss2 && nowB >= bt.nextBurst && this.myAlive) {
           bt.nextBurst = nowB + 4000;
           for (let q = 0; q < 14; q++) { const a3 = (q / 14) * Math.PI * 2 + nowB / 1000; this.bullets.push({ id: bt.id + '_r' + Math.floor(nowB) + '_' + q, uid: bt.id, x: bt.x + Math.cos(a3) * 30, y: bt.y + Math.sin(a3) * 30, dx: Math.cos(a3), dy: Math.sin(a3), age: 0, life: 1.4 }); }
@@ -801,7 +842,8 @@
           for (const bt of this.bots) {
             if (bt.alive && Math.hypot(b.x - bt.x, b.y - bt.y) < PLAYER_R + 4) {
               dead = true; this.rs.hits++;
-              bt.hp -= BULLET_DMG;
+              bt.hp -= BULLET_DMG * (1 + 0.25 * this.up.dmg);
+              if (this.up.steal && this.myAlive) { this.myHp = Math.min(MAX_HP, this.myHp + 2 * this.up.steal); this.onHud(this.myHp); }
               this.burst(bt.x, bt.y, '#ff6b81', 8, 180);
               if (bt.hp <= 0) {
                 bt.alive = false; bt.respawnAt = performance.now() + 3000;
@@ -824,7 +866,7 @@
             }
           } else if (Math.hypot(b.x - this.myX, b.y - this.myY) < PLAYER_R + 4) {
             dead = true;
-            this.myHp -= BULLET_DMG;
+            this.myHp -= BULLET_DMG * (String(b.uid).indexOf('bot') === 0 ? Math.pow(0.82, this.up.arm) : 1);
             this.onHud(this.myHp);
             this.writeSelf(true);
             this.db.ref('rooms/' + this.roomCode + '/events').push({
@@ -1183,10 +1225,10 @@
       for (const bt of this.bots) drawPlayer(bt.id, { name: bt.name, avatar: bt.boss ? '👹' : '🤖', color: bt.color, x: bt.x, y: bt.y, alive: bt.alive, hp: Math.min(bt.hp, MAX_HP), angle: bt.angle }, false);
       for (const bt of this.bots) {
         if (!bt.boss || !bt.alive) continue;
-        const bc = bt.boss2 ? '#a55eea' : '#ff4757'; ctx.strokeStyle = bc; ctx.lineWidth = 5; ctx.shadowColor = bc; ctx.shadowBlur = 16;
+        const bc = bt.boss3 ? '#18dcff' : bt.boss2 ? '#a55eea' : '#ff4757'; ctx.strokeStyle = bc; ctx.lineWidth = 5; ctx.shadowColor = bc; ctx.shadowBlur = 16;
         ctx.beginPath(); ctx.arc(bt.x, bt.y, PLAYER_R + 12, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0;
         ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(bt.x - 40, bt.y - PLAYER_R - 28, 80, 8);
-        ctx.fillStyle = bt.boss2 ? '#a55eea' : '#ff4757'; ctx.fillRect(bt.x - 40, bt.y - PLAYER_R - 28, 80 * Math.max(0, bt.hp) / (bt.max || 300), 8);
+        ctx.fillStyle = bt.boss3 ? '#18dcff' : bt.boss2 ? '#a55eea' : '#ff4757'; ctx.fillRect(bt.x - 40, bt.y - PLAYER_R - 28, 80 * Math.max(0, bt.hp) / (bt.max || 300), 8);
         ctx.font = '16px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#ffd32a'; ctx.fillText('\u{1F451}', bt.x, bt.y - PLAYER_R - 38);
       }
       for (const uid in this.players) drawPlayer(uid, this.players[uid], false);
@@ -1334,5 +1376,5 @@
 
   window.ArenaGame = Game;
   window.ArenaSfx = Sfx;
-  window.ARENA = { WORLD, MAX_HP, PALETTE };
+  window.ARENA = { WORLD, MAX_HP, PALETTE, game: Game };
 })();
