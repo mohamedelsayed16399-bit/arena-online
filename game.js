@@ -41,6 +41,7 @@
     serverOffset: 0,
     endsAt: 0,
     respawnAt: 0,
+    pickups: {}, lastPickupSpawn: 0,
     rafId: null, lastTs: 0,
     onRoundEnd: null, onFeed: null, onHud: null,
     seed: 1,
@@ -55,7 +56,7 @@
       this.canvas = document.getElementById('game-canvas');
       this.ctx = this.canvas.getContext('2d');
       this.running = true; this.ended = false;
-      this.bullets = []; this.players = {};
+      this.bullets = []; this.players = {}; this.pickups = {}; this.lastPickupSpawn = 0;
       this.genObstacles();
       this.resize();
       window.addEventListener('resize', this._resize = () => this.resize());
@@ -143,6 +144,13 @@
       const offRef = this.db.ref('.info/serverTimeOffset');
       const onOff = offRef.on('value', (s) => { this.serverOffset = s.val() || 0; });
       this.listeners.push({ ref: offRef, ev: 'value', fn: onOff });
+
+      // علب الصحة
+      const pickRef = roomRef.child('pickups');
+      const onPickAdd = pickRef.on('child_added', (s) => { const v = s.val(); if (v) this.pickups[s.key] = v; });
+      const onPickRem = pickRef.on('child_removed', (s) => { delete this.pickups[s.key]; });
+      this.listeners.push({ ref: pickRef, ev: 'child_added', fn: onPickAdd });
+      this.listeners.push({ ref: pickRef, ev: 'child_removed', fn: onPickRem });
 
       // الأحداث (طلقات، إصابات، قتل)
       const eventsRef = roomRef.child('events');
@@ -324,6 +332,25 @@
         return;
       }
 
+      // الهوست دايمًا أقدم لاعب موجود — لو الأساسي قفل، اللي بعده يمسك
+      let bestJ = this.me.joinedAt || Infinity, hostUid = bestJ === Infinity ? null : this.me.uid;
+      for (const uid in this.players) {
+        const j = this.players[uid].joinedAt || Infinity;
+        if (j < bestJ) { bestJ = j; hostUid = uid; }
+      }
+      if (hostUid) this.host = hostUid === this.me.uid;
+
+      // الهوست يزرع علب صحة كل ٢٠ ثانية (بحد أقصى ٣)
+      if (this.host) {
+        const nowS = this.serverNow();
+        if (nowS - this.lastPickupSpawn >= 20000 && Object.keys(this.pickups).length < 3) {
+          this.lastPickupSpawn = nowS;
+          const rnd = mulberry32(((nowS & 0x7fffffff) >>> 0) ^ this.seed);
+          const p = this.freeSpot(rnd);
+          this.db.ref('rooms/' + this.roomCode + '/pickups').push({ x: Math.round(p.x), y: Math.round(p.y) }).catch(() => {});
+        }
+      }
+
       // الريسبون
       if (!this.myAlive && performance.now() >= this.respawnAt) {
         const rnd = mulberry32(Date.now() & 0xffff);
@@ -421,6 +448,21 @@
       // ابعت موقعي
       if (this.myAlive) this.writeSelf(false);
 
+      // التقاط علب الصحة
+      if (this.myAlive && this.myHp < MAX_HP) {
+        for (const pid in this.pickups) {
+          const pk = this.pickups[pid];
+          const pdx = pk.x - this.myX, pdy = pk.y - this.myY;
+          if (pdx * pdx + pdy * pdy < (PLAYER_R + 16) * (PLAYER_R + 16)) {
+            this.myHp = Math.min(MAX_HP, this.myHp + 50);
+            this.db.ref('rooms/' + this.roomCode + '/pickups/' + pid).remove().catch(() => {});
+            this.onFeed('💊 التقطت علبة صحة (+٥٠)');
+            this.writeSelf(true);
+            break;
+          }
+        }
+      }
+
       // حدّث الواجهة
       const left = Math.max(0, this.endsAt - this.serverNow());
       const mm = Math.floor(left / 60000), ss = Math.floor((left % 60000) / 1000);
@@ -428,6 +470,10 @@
       document.getElementById('hud-kills').textContent = this.kills || 0;
       document.getElementById('hud-deaths').textContent = this.deaths || 0;
       document.getElementById('hud-hp-fill').style.width = Math.max(0, this.myHp) + '%';
+      let aliveCount = this.myAlive ? 1 : 0;
+      for (const uid in this.players) if (this.players[uid].alive) aliveCount++;
+      const aliveEl = document.getElementById('hud-alive-n');
+      if (aliveEl) aliveEl.textContent = aliveCount;
     },
 
     finishRound() {
@@ -435,6 +481,7 @@
       this.ended = true;
       // الهوست بيغيّر الحالة — الكل هيسمع ويطلع للنتائج
       this.db.ref('rooms/' + this.roomCode + '/meta').update({ state: 'ended' }).catch(() => {});
+      this.db.ref('rooms/' + this.roomCode + '/pickups').remove().catch(() => {});
     },
 
     collectResults() {
@@ -480,6 +527,19 @@
         ctx.strokeStyle = 'rgba(255,255,255,0.08)';
         ctx.lineWidth = 2;
         ctx.stroke();
+      }
+
+      // علب الصحة
+      for (const pid in this.pickups) {
+        const pk = this.pickups[pid];
+        ctx.fillStyle = '#2ed573';
+        ctx.shadowColor = '#2ed573'; ctx.shadowBlur = 12;
+        roundRect(ctx, pk.x - 13, pk.y - 13, 26, 26, 7);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(pk.x - 3, pk.y - 9, 6, 18);
+        ctx.fillRect(pk.x - 9, pk.y - 3, 18, 6);
       }
 
       // الطلقات
@@ -542,6 +602,33 @@
       drawPlayer(this.me.uid, { name: this.me.name, avatar: this.me.avatar, color: this.me.color }, true);
 
       ctx.restore();
+      this.drawMinimap();
+    },
+
+    drawMinimap() {
+      const mc = document.getElementById('minimap');
+      if (!mc) return;
+      const c = mc.getContext('2d');
+      const S = mc.width, sc = S / WORLD;
+      c.clearRect(0, 0, S, S);
+      c.fillStyle = 'rgba(255,255,255,0.18)';
+      for (const o of this.obstacles) c.fillRect(o.x * sc, o.y * sc, Math.max(2, o.w * sc), Math.max(2, o.h * sc));
+      c.fillStyle = '#2ed573';
+      for (const pid in this.pickups) { const pk = this.pickups[pid]; c.beginPath(); c.arc(pk.x * sc, pk.y * sc, 3, 0, Math.PI * 2); c.fill(); }
+      for (const uid in this.players) {
+        const p = this.players[uid];
+        if (!p.alive || p.x === undefined) continue;
+        c.fillStyle = PALETTE[(p.color || 0) % PALETTE.length];
+        c.beginPath(); c.arc(p.x * sc, p.y * sc, 4, 0, Math.PI * 2); c.fill();
+      }
+      if (this.myAlive) {
+        c.fillStyle = '#fff';
+        c.beginPath(); c.arc(this.myX * sc, this.myY * sc, 5, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = PALETTE[(this.me.color || 0) % PALETTE.length]; c.lineWidth = 2;
+        c.beginPath(); c.arc(this.myX * sc, this.myY * sc, 7, 0, Math.PI * 2); c.stroke();
+      }
+      c.strokeStyle = 'rgba(255,255,255,0.35)'; c.lineWidth = 1.5;
+      c.strokeRect(this.cam.x * sc, this.cam.y * sc, Math.max(8, innerWidth * sc), Math.max(8, innerHeight * sc));
     },
   };
 
