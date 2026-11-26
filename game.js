@@ -205,6 +205,11 @@
       const onOff = offRef.on('value', (s) => { this.serverOffset = s.val() || 0; });
       this.listeners.push({ ref: offRef, ev: 'value', fn: onOff });
 
+      // جواهر (مزامنة: أول واحد ياخد الجوهرة بس)
+      const gemRef = roomRef.child('gems');
+      const onGem = gemRef.on('child_added', (s) => { this.gemTaken[s.key] = true; });
+      this.listeners.push({ ref: gemRef, ev: 'child_added', fn: onGem });
+
       // علب الصحة
       const pickRef = roomRef.child('pickups');
       const onPickAdd = pickRef.on('child_added', (s) => { const v = s.val(); if (v) this.pickups[s.key] = v; });
@@ -295,7 +300,9 @@
       }).catch(() => {});
     },
 
-    ach(type, val) { try { if (window.ArenaAch) window.ArenaAch.hit(type, val); } catch (err) { /* ignore */ } },
+    coin(n) { try { localStorage.setItem('arena_coins', String((+localStorage.getItem('arena_coins') || 0) + n)); } catch (err) { /* ignore */ } },
+    bulletColor() { try { return (window.ARENA_SKINS || {})[localStorage.getItem('arena_skin') || 'gold'] || '#ffd32a'; } catch (err) { return '#ffd32a'; } },
+    ach(type, val) { if (type === 'kill') this.coin(1); else if (type === 'wave') this.coin(5); try { if (window.ArenaAch) window.ArenaAch.hit(type, val); } catch (err) { /* ignore */ } },
 
     dash() {
       const now = performance.now();
@@ -749,10 +756,13 @@
         for (const gm of this.gemList()) {
           if (this.gemTaken[gm.key]) continue;
           if (Math.hypot(this.myX - gm.x, this.myY - gm.y) < 36) {
-            this.gemTaken[gm.key] = true; this.zpts = (this.zpts || 0) + (gm.gold ? 5 : 1);
+            this.gemTaken[gm.key] = true;
             this.burst(gm.x, gm.y, gm.gold ? '#ffd32a' : '#18dcff', 12, 200); if (Sfx.pick) Sfx.pick();
-            if (gm.gold) this.onFeed('💎 جوهرة دهبية! +٥');
-            this.writeSelf(true);
+            const pts = gm.gold ? 5 : 1;
+            const award = () => { this.zpts = (this.zpts || 0) + pts; this.coin(gm.gold ? 3 : 1); if (gm.gold) this.onFeed('💎 جوهرة دهبية! +٥'); this.writeSelf(true); };
+            this.db.ref('rooms/' + this.roomCode + '/gems/' + gm.key).transaction((cur) => (cur ? undefined : this.me.uid)).then((r) => {
+              if (r && r.committed) award();
+            }).catch(() => { award(); });
           }
         }
       }
@@ -1147,10 +1157,12 @@
 
       // الطلقات
       for (const b of this.bullets) {
-        ctx.strokeStyle = 'rgba(255,211,42,0.45)'; ctx.lineWidth = 4;
-        ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.dx * 26, b.y - b.dy * 26); ctx.stroke();
-        ctx.fillStyle = '#ffd32a';
-        ctx.shadowColor = '#ffd32a'; ctx.shadowBlur = 10;
+        let bcol = '#ffd32a';
+        if (b.uid === this.me.uid) { bcol = this.bulletColor(); if (bcol === 'rainbow') bcol = 'hsl(' + ((performance.now() / 4 + b.x) % 360) + ',95%,60%)'; }
+        ctx.strokeStyle = bcol; ctx.globalAlpha = 0.5; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.dx * 26, b.y - b.dy * 26); ctx.stroke(); ctx.globalAlpha = 1;
+        ctx.fillStyle = bcol;
+        ctx.shadowColor = bcol; ctx.shadowBlur = 10;
         ctx.beginPath();
         ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
         ctx.fill();
@@ -1303,7 +1315,7 @@
 
       if (this.mode === 'gems') {
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold 18px Cairo, sans-serif'; ctx.fillStyle = '#18dcff';
-        ctx.fillText('💎 جواهرك: ' + (this.zpts || 0), innerWidth / 2, innerHeight - 140);
+        ctx.fillText('💎 جواهرك: ' + (this.zpts || 0), innerWidth / 2, innerWidth < 641 ? 84 : 108);
       }
       if (this.mode === 'zone') {
         const z2 = this.zoneInfo();
