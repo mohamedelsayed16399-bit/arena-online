@@ -129,6 +129,7 @@
     $('btn-back-from-shop').onclick = () => { updShopBtn(); show('home'); };
     updShopBtn(); setInterval(updShopBtn, 4000);
     $('btn-gren').onclick = () => { if (window.ArenaGame && ArenaGame.running) ArenaGame.throwGrenade(); };
+    $('btn-ult').onclick = () => { if (window.ArenaGame && ArenaGame.running) ArenaGame.ultimate(); };
     $('btn-dash').onclick = () => { if (window.ArenaGame && ArenaGame.running) ArenaGame.dash(); };
     const diffNames = { easy: 'سهل', normal: 'عادي', hard: 'صعب' };
     const diffOrder = ['easy', 'normal', 'hard'];
