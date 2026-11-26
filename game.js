@@ -382,6 +382,16 @@
       for (const o of this.barrels) { if (!o.dead && Math.hypot(o.x - br.x, o.y - br.y) < R) setTimeout(() => this.explodeBarrel(o), 150); }
     },
 
+    stormInfo() {
+      if (this.mode !== 'storm') return null;
+      const total = 94000;
+      const el = clamp(total - Math.max(0, this.endsAt - this.serverNow()), 0, total) / 1000;
+      const t = clamp((el - 8) / 72, 0, 1);
+      const R0 = WORLD * 0.72, R1 = 170;
+      const cx = WORLD / 2 + Math.cos(this.seed * 1.7) * 220, cy = WORLD / 2 + Math.sin(this.seed * 2.3) * 220;
+      return { x: cx, y: cy, r: R0 + (R1 - R0) * t, t, el };
+    },
+
     zoneInfo() {
       if (this.mode !== 'zone') return null;
       const idx = Math.floor(Math.max(0, this.endsAt - this.serverNow()) / 15000);
@@ -436,7 +446,9 @@
       this.respawnAt = performance.now() + RESPAWN_SEC * 1000;
       const ref = this.db.ref('rooms/' + this.roomCode + '/players/' + this.me.uid);
       ref.update({ alive: false, hp: 0, deaths: this.deaths }).catch(() => {});
-      if (killerUid === 'lava') {
+      if (killerUid === 'storm') {
+        this.onFeed('🌪️ العاصفة قتلتك');
+      } else if (killerUid === 'lava') {
         this.onFeed('🌋 الحمم قتلتك');
       } else if (killerUid && String(killerUid).indexOf('bot') === 0) {
         this.onFeed('☠️ قتلك بوت');
@@ -636,6 +648,21 @@
             if (this.myHp <= 0) { this.burst(this.myX, this.myY, '#ffd32a', 30, 320); this.die('lava'); }
           }
         } else if (!inLava) { this.wasLava = false; }
+      }
+
+      const st = this.stormInfo();
+      this.inStorm = false;
+      if (st && this.myAlive) {
+        this.inStorm = Math.hypot(this.myX - st.x, this.myY - st.y) > st.r;
+        if (this.inStorm && performance.now() > this.protectedUntil) {
+          if (!this.wasStorm) { this.wasStorm = true; this.onFeed('🌪️ انت برّه الدايرة! ارجع جوّه'); }
+          this.stormAcc = (this.stormAcc || 0) + dt;
+          if (this.stormAcc >= 0.5) {
+            this.stormAcc -= 0.5; this.myHp -= 4; this.onHud(this.myHp); this.writeSelf(true);
+            this.burst(this.myX, this.myY, '#c0392b', 6, 160); this.hitFlashUntil = performance.now() + 150;
+            if (this.myHp <= 0) { this.burst(this.myX, this.myY, '#ffd32a', 30, 320); this.die('storm'); }
+          }
+        } else if (!this.inStorm) { this.wasStorm = false; }
       }
 
       // منطقة السيطرة: نقطة كل ثانية وانت جواها
@@ -916,6 +943,13 @@
       ctx.strokeStyle = 'rgba(255,71,87,0.5)';
       ctx.lineWidth = 4;
       ctx.strokeRect(0, 0, WORLD, WORLD);
+      const stm = this.stormInfo();
+      if (stm) {
+        ctx.fillStyle = 'rgba(170,20,30,0.30)';
+        ctx.beginPath(); ctx.rect(-2000, -2000, WORLD + 4000, WORLD + 4000); ctx.arc(stm.x, stm.y, stm.r, 0, Math.PI * 2, true); ctx.fill('evenodd');
+        ctx.strokeStyle = 'rgba(255,90,90,' + (0.7 + 0.3 * Math.sin(performance.now() / 200)) + ')'; ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.arc(stm.x, stm.y, stm.r, 0, Math.PI * 2); ctx.stroke();
+      }
 
       for (const h of (this.hazards || [])) {
         const tt = performance.now() / 1000;
@@ -1118,6 +1152,15 @@
           ctx.globalAlpha = 1;
         }
       }
+      const sti = this.stormInfo();
+      if (sti && this.myAlive) {
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = 'bold 15px Cairo, sans-serif';
+        ctx.fillStyle = this.inStorm ? '#ff4757' : '#ffa502';
+        const msg = this.inStorm ? '🌪️ انت برّه الدايرة! ارجع جوّه' : (sti.el < 8 ? '🌪️ العاصفة هتبدأ تضيّق بعد ' + Math.ceil(8 - sti.el) + 'ث' : '🌪️ الدايرة بتضيّق: ' + Math.round(sti.r) + ' م');
+        ctx.fillText(msg, innerWidth / 2, innerWidth < 641 ? innerHeight - 250 : 105);
+      }
+
       // وميض أحمر لما اتضرب
       if (performance.now() < this.hitFlashUntil) {
         ctx.fillStyle = 'rgba(255,71,87,0.18)';
@@ -1163,6 +1206,8 @@
       c.fillStyle = 'rgba(255,255,255,0.18)';
       for (const o of this.obstacles) c.fillRect(o.x * sc, o.y * sc, Math.max(2, o.w * sc), Math.max(2, o.h * sc));
       for (const h of (this.hazards || [])) { c.fillStyle = h.type === 'lava' ? 'rgba(255,90,30,0.65)' : 'rgba(160,225,255,0.4)'; c.beginPath(); c.arc(h.x * sc, h.y * sc, h.r * sc, 0, Math.PI * 2); c.fill(); }
+      const sm = this.stormInfo();
+      if (sm) { c.strokeStyle = '#ff4757'; c.lineWidth = 2; c.beginPath(); c.arc(sm.x * sc, sm.y * sc, sm.r * sc, 0, Math.PI * 2); c.stroke(); }
       const zm = this.zoneInfo();
       if (zm) { c.strokeStyle = '#ffd32a'; c.lineWidth = 2; c.beginPath(); c.arc(zm.x * sc, zm.y * sc, zm.r * sc, 0, Math.PI * 2); c.stroke(); }
       c.fillStyle = '#2ed573';
