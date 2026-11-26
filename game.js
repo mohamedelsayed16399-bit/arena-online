@@ -58,7 +58,7 @@
       this.canvas = document.getElementById('game-canvas');
       this.ctx = this.canvas.getContext('2d');
       this.running = true; this.ended = false;
-      this.bullets = []; this.players = {}; this.pickups = {}; this.lastPickupSpawn = 0;
+      this.bullets = []; this.players = {}; this.pickups = {}; this.lastPickupSpawn = 0; this.streaks = {};
       this.genObstacles();
       this.resize();
       window.addEventListener('resize', this._resize = () => this.resize());
@@ -202,6 +202,11 @@
         const killer = e.by === this.me.uid ? (this.me.name) : (this.players[e.by] && this.players[e.by].name) || 'لاعب';
         const victim = e.target === this.me.uid ? (this.me.name) : (this.players[e.target] && this.players[e.target].name) || 'لاعب';
         this.onFeed(`☠️ ${killer} قضى على ${victim}`);
+        this.streaks = this.streaks || {};
+        this.streaks[e.target] = 0;
+        this.streaks[e.by] = (this.streaks[e.by] || 0) + 1;
+        const sk = this.streaks[e.by];
+        if (sk >= 3) this.onFeed(`🔥 ${killer} في سلسلة ${sk} قتلات!`);
         Sfx.kill();
         if (e.target === this.me.uid && this.myAlive) {
           // تأكيد موتي
