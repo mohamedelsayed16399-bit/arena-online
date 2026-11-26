@@ -202,6 +202,7 @@
     $('btn-start-zone').onclick = () => hostStartRound('zone');
     $('btn-start-team').onclick = () => hostStartRound('team');
     $('btn-start-coop').onclick = () => hostStartRound('coop');
+    $('btn-start-flag').onclick = () => hostStartRound('flag');
     $('btn-start-gems').onclick = () => hostStartRound('gems');
     $('btn-start-storm').onclick = () => hostStartRound('storm');
     $('btn-send-chat').onclick = sendChat;
@@ -469,6 +470,7 @@
     $('btn-start-zone').classList.toggle('hidden', !isHost);
     $('btn-start-team').classList.toggle('hidden', !isHost);
     $('btn-start-coop').classList.toggle('hidden', !isHost);
+    $('btn-start-flag').classList.toggle('hidden', !isHost);
     $('btn-start-gems').classList.toggle('hidden', !isHost);
     $('btn-start-storm').classList.toggle('hidden', !isHost);
     $('lobby-hint').textContent = isHost
@@ -512,7 +514,7 @@
   function hostStartRound(mode) {
     window._lastMode = mode;
     if (!isHost || !roomCode) return;
-    const secs = mode === 'blitz' ? 60 : mode === 'zone' ? 90 : mode === 'team' ? 90 : mode === 'gems' ? 90 : mode === 'storm' ? 90 : ROUND_SECONDS;
+    const secs = mode === 'blitz' ? 60 : mode === 'zone' ? 90 : mode === 'team' ? 90 : mode === 'flag' ? 90 : mode === 'gems' ? 90 : mode === 'storm' ? 90 : ROUND_SECONDS;
     const endsAt = Date.now() + secs * 1000 + 4000; // +٤ ثواني هامش سيرفر
     db.ref('rooms/' + roomCode + '/state').set({
       endsAt,
@@ -567,7 +569,7 @@
   function startGame(endsAt, mode) {
     if ($('screen-game').classList.contains('active') && window.ArenaGame.running) return;
     show('game');
-    $('hud-mode').textContent = mode === 'coop' ? '🤝 تعاون' : mode === 'team' ? '🔴🔵 فريق ضد فريق' : mode === 'blitz' ? '⚡ بليتز' : mode === 'zone' ? '🎯 السيطرة' : mode === 'gems' ? '💎 صيد الجواهر' : mode === 'storm' ? '🌪️ العاصفة' : '';
+    $('hud-mode').textContent = mode === 'flag' ? '🚩 العلم' : mode === 'coop' ? '🤝 تعاون' : mode === 'team' ? '🔴🔵 فريق ضد فريق' : mode === 'blitz' ? '⚡ بليتز' : mode === 'zone' ? '🎯 السيطرة' : mode === 'gems' ? '💎 صيد الجواهر' : mode === 'storm' ? '🌪️ العاصفة' : '';
     maybeTutorial();
     ArenaGame.start({
       db, roomCode,
@@ -645,7 +647,7 @@
       d.innerHTML = `<span class="r-rank">${medals[i] || (i + 1)}</span>
         <span>${r.avatar || '🦊'}</span>
         <span class="r-name">${ArenaGame.mode === 'team' ? (ArenaGame.teamOf(r.uid) === 0 ? '🔴 ' : ArenaGame.teamOf(r.uid) === 1 ? '🔵 ' : '') : ''}${esc(r.name)}${r.uid === uid ? ' (انت)' : ''}</span>
-        <span class="r-score">${ArenaGame.mode === 'gems' ? '💎 ' + (r.zpts || 0) + ' | ' : ''}${ArenaGame.mode === 'zone' ? '🎯 ' + (r.zpts || 0) + ' | ' : ''}☠️ ${r.kills} | 💀 ${r.deaths}</span>`;
+        <span class="r-score">${ArenaGame.mode === 'flag' ? '🚩 ' + (r.zpts || 0) + ' | ' : ''}${ArenaGame.mode === 'gems' ? '💎 ' + (r.zpts || 0) + ' | ' : ''}${ArenaGame.mode === 'zone' ? '🎯 ' + (r.zpts || 0) + ' | ' : ''}☠️ ${r.kills} | 💀 ${r.deaths}</span>`;
       list.appendChild(d);
     });
     (function () {
@@ -689,7 +691,7 @@
     if (isHost) {
       setTimeout(() => {
         if (!roomCode) return;
-        db.ref('rooms/' + roomCode + '/gems').remove().catch(() => {});
+        db.ref('rooms/' + roomCode + '/gems').remove().catch(() => {}); db.ref('rooms/' + roomCode + '/flag').remove().catch(() => {});
         const updates = { state: 'lobby' };
         db.ref('rooms/' + roomCode + '/meta').update(updates).then(() => {
           return db.ref('rooms/' + roomCode + '/players').once('value');
