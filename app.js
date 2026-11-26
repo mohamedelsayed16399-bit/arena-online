@@ -8,7 +8,7 @@
   const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
   const $ = (id) => document.getElementById(id);
-  const screens = ['loading', 'profile', 'home', 'lobby', 'game', 'results', 'leaderboard', 'friends', 'how', 'rooms'];
+  const screens = ['loading', 'profile', 'home', 'lobby', 'game', 'results', 'leaderboard', 'friends', 'how', 'rooms', 'stats'];
 
   let db = null, auth = null, uid = null;
   let profile = null;       // {name, avatar}
@@ -105,6 +105,8 @@
     $('input-room-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('btn-join').click(); });
     $('btn-leaderboard').onclick = () => { showLeaderboard('wins'); };
     $('btn-rooms').onclick = showRooms;
+    $('btn-stats').onclick = showStats;
+    $('btn-back-from-stats').onclick = () => show('home');
     $('btn-rooms-refresh').onclick = showRooms;
     $('btn-back-from-rooms').onclick = () => show('home');
     $('btn-friends').onclick = () => { showFriends(); };
@@ -615,6 +617,29 @@
   }
 
   // ============ المتصدرين ============
+  function showStats() {
+    show('stats');
+    const c = $('stats-card');
+    c.innerHTML = '<p class="subtitle">بجيب البيانات…</p>';
+    db.ref('leaderboard').once('value', (s) => {
+      const rows = [];
+      s.forEach((x) => { const v = x.val(); v.uid = x.key; v.points = (v.wins || 0) * 5 + (v.kills || 0) * 2 - (v.deaths || 0); rows.push(v); });
+      rows.sort((p, q) => q.points - p.points);
+      const i = rows.findIndex((r) => r.uid === uid);
+      const me = i >= 0 ? rows[i] : { wins: 0, kills: 0, deaths: 0, points: 0 };
+      const kd = (me.kills || 0) / Math.max(1, me.deaths || 0);
+      c.innerHTML = `<div class="stats-head"><span class="stats-av">${profile.avatar || '🦊'}</span><b>${esc(profile.name)}</b></div>
+        <div class="stats-grid">
+          <div><span>🏆</span><b>${me.wins || 0}</b><small>انتصارات</small></div>
+          <div><span>☠️</span><b>${me.kills || 0}</b><small>قتلات</small></div>
+          <div><span>💀</span><b>${me.deaths || 0}</b><small>مرات الموت</small></div>
+          <div><span>🎯</span><b>${kd.toFixed(2)}</b><small>نسبة ق/م</small></div>
+          <div><span>⭐</span><b>${me.points}</b><small>نقاط</small></div>
+          <div><span>🏅</span><b>${i >= 0 ? '#' + (i + 1) : '-'}</b><small>ترتيبك من ${rows.length}</small></div>
+        </div>` + (i < 0 ? '<p class="subtitle">العب جولة مع لاعب تاني عشان تظهر في الترتيب</p>' : '');
+    }, () => { c.innerHTML = '<p class="subtitle">مقدرتش أجيب البيانات</p>'; });
+  }
+
   function showLeaderboard(mode) {
     show('leaderboard');
     $('tab-wins').classList.toggle('active', mode === 'wins');
