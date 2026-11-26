@@ -157,6 +157,12 @@ input:focus { border-color:var(--primary); }
 
 .awards { width:100%; max-width:420px; background:var(--card); border-radius:14px; padding:12px 14px; margin:10px 0; }
 .awards h3 { margin:0 0 8px; font-size:15px; text-align:center; }
+.me-lvl { margin:6px auto; max-width:260px; font-size:13px; text-align:center; }
+.lvl-bar { height:8px; border-radius:6px; background:rgba(255,255,255,.12); overflow:hidden; margin-top:4px; }
+.lvl-bar i { display:block; height:100%; background:linear-gradient(90deg,#18dcff,#a55eea); border-radius:6px; }
+.xp-box { margin:10px 0; padding:10px; border-radius:12px; background:rgba(165,94,234,.15); text-align:center; }
+.xp-box.up { background:rgba(255,211,42,.2); animation:xpPulse 1s ease 3; }
+@keyframes xpPulse { 50% { transform:scale(1.04); } }
 .aw-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
 .aw-grid div { background:rgba(255,255,255,.06); border-radius:10px; padding:8px 4px; text-align:center; }
 .aw-grid b { display:block; font-size:20px; color:var(--gold); }
