@@ -532,7 +532,8 @@
       const rapid = this.weapon === 'rapid' && now < this.weaponUntil;
       const triple = this.weapon === 'triple' && now < this.weaponUntil;
       const shotgun = this.weapon === 'shotgun' && now < this.weaponUntil;
-      if (now - this.lastFire < (rapid ? 130 : shotgun ? 520 : FIRE_COOLDOWN) * Math.pow(0.85, this.up.rate) || !this.myAlive) return;
+      const homing = this.weapon === 'homing' && now < this.weaponUntil;
+      if (now - this.lastFire < (rapid ? 130 : shotgun ? 520 : homing ? 600 : FIRE_COOLDOWN) * Math.pow(0.85, this.up.rate) || !this.myAlive) return;
       this.lastFire = now; this.rs.shots++;
       const angs = shotgun ? [-0.4, -0.2, 0, 0.2, 0.4] : triple ? [-0.22, 0, 0.22] : [0];
       if (shotgun) { this.shakeUntil = Math.max(this.shakeUntil, now + 120); this.burst(this.myX + Math.cos(this.myAngle) * 30, this.myY + Math.sin(this.myAngle) * 30, '#ffa502', 10, 260); }
@@ -541,7 +542,7 @@
         const id = this.me.uid.slice(0, 4) + '_' + now + '_' + k + Math.floor(Math.random() * 999);
         const dx = Math.cos(a), dy = Math.sin(a);
         const bx = this.myX + dx * (PLAYER_R + 6), by = this.myY + dy * (PLAYER_R + 6);
-        this.bullets.push({ id, uid: this.me.uid, x: bx, y: by, dx, dy, age: 0, life: shotgun ? 0.5 : 0 });
+        this.bullets.push({ id, uid: this.me.uid, x: bx, y: by, dx, dy, age: 0, life: shotgun ? 0.5 : homing ? 1.8 : 0, h: homing });
         this.db.ref('rooms/' + this.roomCode + '/events').push({
           t: 'shoot', id, uid: this.me.uid,
           x: Math.round(bx), y: Math.round(by),
@@ -684,7 +685,7 @@
           this.lastPickupSpawn = nowS;
           const rnd = mulberry32(((nowS & 0x7fffffff) >>> 0) ^ this.seed);
           const p = this.freeSpot(rnd);
-          const types = ['hp', 'speed', 'shield', 'rapid', 'triple', 'shotgun'];
+          const types = ['hp', 'speed', 'shield', 'rapid', 'triple', 'shotgun', 'homing'];
           const type = types[Math.floor(rnd() * types.length)];
           this.db.ref('rooms/' + this.roomCode + '/pickups').push({ x: Math.round(p.x), y: Math.round(p.y), t: type }).catch(() => {});
         }
@@ -927,6 +928,15 @@
 
       for (let i = this.bullets.length - 1; i >= 0; i--) {
         const b = this.bullets[i];
+        if (b.h) {
+          let tb = null, td = 750;
+          for (const bt of this.bots) { if (bt.alive) { const dd = Math.hypot(bt.x - b.x, bt.y - b.y); if (dd < td) { td = dd; tb = bt; } } }
+          if (tb) {
+            const cur = Math.atan2(b.dy, b.dx); let df = Math.atan2(tb.y - b.y, tb.x - b.x) - cur; while (df > Math.PI) df -= 6.283; while (df < -Math.PI) df += 6.283;
+            const na = cur + Math.max(-4.5 * dt, Math.min(4.5 * dt, df)); b.dx = Math.cos(na); b.dy = Math.sin(na);
+          }
+          if (Math.random() < 0.6) this.burst(b.x, b.y, '#ff9f43', 1, 40);
+        }
         b.x += b.dx * BULLET_SPEED * dt;
         b.y += b.dy * BULLET_SPEED * dt;
         b.age += dt;
@@ -949,7 +959,7 @@
           for (const bt of this.bots) {
             if (bt.alive && Math.hypot(b.x - bt.x, b.y - bt.y) < PLAYER_R + 4) {
               dead = true; this.rs.hits++;
-              bt.hp -= BULLET_DMG * (1 + 0.25 * this.up.dmg);
+              bt.hp -= BULLET_DMG * (b.h ? 2 : 1) * (1 + 0.25 * this.up.dmg);
               if (this.up.steal && this.myAlive) { this.myHp = Math.min(MAX_HP, this.myHp + 2 * this.up.steal); this.onHud(this.myHp); }
               this.burst(bt.x, bt.y, '#ff6b81', 8, 180);
               if (bt.hp <= 0) {
@@ -1088,6 +1098,9 @@
           } else if (type === 'shotgun') {
             this.weapon = 'shotgun'; this.weaponUntil = performance.now() + 10000;
             this.onFeed('💥 شوتجن ١٠ ثواني! ٥ طلقات في الضربة');
+          } else if (type === 'homing') {
+            this.weapon = 'homing'; this.weaponUntil = performance.now() + 12000;
+            this.onFeed('🚀 صواريخ موجهة ١٢ ثانية! بتطارد أقرب بوت');
           } else if (type === 'shield') {
             this.shieldUntil = performance.now() + 5000;
             this.onFeed('🛡️ درع ٥ ثواني!');
@@ -1247,7 +1260,7 @@
       for (const pid in this.pickups) {
         const pk = this.pickups[pid];
         const type = pk.t || 'hp';
-        const col = type === 'speed' ? '#ffa502' : type === 'shield' ? '#1e90ff' : type === 'rapid' ? '#a55eea' : type === 'triple' ? '#fd79a8' : type === 'shotgun' ? '#ff6348' : '#2ed573';
+        const col = type === 'speed' ? '#ffa502' : type === 'shield' ? '#1e90ff' : type === 'rapid' ? '#a55eea' : type === 'triple' ? '#fd79a8' : type === 'shotgun' ? '#ff6348' : type === 'homing' ? '#ff9f43' : '#2ed573';
         ctx.fillStyle = col;
         ctx.shadowColor = col; ctx.shadowBlur = 12;
         roundRect(ctx, pk.x - 13, pk.y - 13, 26, 26, 7);
@@ -1260,20 +1273,20 @@
         } else {
           ctx.font = '16px serif';
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText(type === 'speed' ? '👟' : type === 'rapid' ? '🔫' : type === 'triple' ? '🔱' : type === 'shotgun' ? '💥' : '🛡️', pk.x, pk.y + 1);
+          ctx.fillText(type === 'speed' ? '👟' : type === 'rapid' ? '🔫' : type === 'triple' ? '🔱' : type === 'shotgun' ? '💥' : type === 'homing' ? '🚀' : '🛡️', pk.x, pk.y + 1);
         }
       }
 
       // الطلقات
       for (const b of this.bullets) {
-        let bcol = '#ffd32a';
-        if (b.uid === this.me.uid) { bcol = this.bulletColor(); if (bcol === 'rainbow') bcol = 'hsl(' + ((performance.now() / 4 + b.x) % 360) + ',95%,60%)'; }
+        let bcol = b.h ? '#ff9f43' : '#ffd32a';
+        if (b.uid === this.me.uid && !b.h) { bcol = this.bulletColor(); if (bcol === 'rainbow') bcol = 'hsl(' + ((performance.now() / 4 + b.x) % 360) + ',95%,60%)'; }
         ctx.strokeStyle = bcol; ctx.globalAlpha = 0.5; ctx.lineWidth = 4;
         ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.dx * 26, b.y - b.dy * 26); ctx.stroke(); ctx.globalAlpha = 1;
         ctx.fillStyle = bcol;
         ctx.shadowColor = bcol; ctx.shadowBlur = 10;
         ctx.beginPath();
-        ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
+        ctx.arc(b.x, b.y, b.h ? 8 : 5, 0, Math.PI * 2);
         ctx.fill();
         ctx.shadowBlur = 0;
       }
@@ -1463,8 +1476,8 @@
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       const wl = this.weaponUntil - performance.now();
       if (this.myAlive && wl > 0) {
-        ctx.font = 'bold 14px Cairo, sans-serif'; ctx.fillStyle = this.weapon === 'rapid' ? '#a55eea' : this.weapon === 'shotgun' ? '#ff6348' : '#fd79a8';
-        ctx.fillText((this.weapon === 'rapid' ? '🔫 رشاش ' : this.weapon === 'shotgun' ? '💥 شوتجن ' : '🔱 ثلاثي ') + Math.ceil(wl / 1000) + 'ث', innerWidth / 2, innerHeight - 170);
+        ctx.font = 'bold 14px Cairo, sans-serif'; ctx.fillStyle = this.weapon === 'rapid' ? '#a55eea' : this.weapon === 'shotgun' ? '#ff6348' : this.weapon === 'homing' ? '#ff9f43' : '#fd79a8';
+        ctx.fillText((this.weapon === 'rapid' ? '🔫 رشاش ' : this.weapon === 'shotgun' ? '💥 شوتجن ' : this.weapon === 'homing' ? '🚀 موجّه ' : '🔱 ثلاثي ') + Math.ceil(wl / 1000) + 'ث', innerWidth / 2, innerHeight - 170);
       }
       if (!this.myAlive && this.specName) {
         ctx.font = 'bold 16px Cairo, sans-serif'; ctx.fillStyle = '#fff';
