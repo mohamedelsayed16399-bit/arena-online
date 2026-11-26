@@ -49,7 +49,7 @@
     respawnAt: 0,
     pickups: {}, lastPickupSpawn: 0,
     muzzleUntil: 0, hitFlashUntil: 0, lastHpShown: null,
-    speedUntil: 0, shieldUntil: 0, protectedUntil: 0, weaponUntil: 0, weapon: '', fx: [], dashUntil: 0, dashCd: 0, wave: 1, waveAt: 0, waveBanner: null, gren: [], grenCd: 0, rings: [], gcount: 0, dashX: 0, dashY: 0, mode: 'classic', zpts: 0, zoneAcc: 0, zoneCache: null, bots: [], botCheckAt: 0, botAnnounced: false, shakeUntil: 0, specIdx: 0, lastBurst: 0,
+    speedUntil: 0, shieldUntil: 0, protectedUntil: 0, weaponUntil: 0, weapon: '', fx: [], dashUntil: 0, dashCd: 0, barrels: [], wave: 1, waveAt: 0, waveBanner: null, gren: [], grenCd: 0, rings: [], gcount: 0, dashX: 0, dashY: 0, mode: 'classic', zpts: 0, zoneAcc: 0, zoneCache: null, bots: [], botCheckAt: 0, botAnnounced: false, shakeUntil: 0, specIdx: 0, lastBurst: 0,
     rafId: null, lastTs: 0,
     onRoundEnd: null, onFeed: null, onHud: null,
     seed: 1,
@@ -78,7 +78,7 @@
       this.myX = p.x; this.myY = p.y; this.myAngle = 0;
       this.myHp = MAX_HP; this.myAlive = true;
       this.lastHpShown = MAX_HP; this.muzzleUntil = 0; this.hitFlashUntil = 0;
-      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.wave = 1; this.waveAt = 0; this.waveBanner = null; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.specIdx = 0;
+      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.barrels = []; this.wave = 1; this.waveAt = 0; this.waveBanner = null; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.specIdx = 0;
       this.protectedUntil = performance.now() + 2000; // حماية بداية الجولة
       this.writeSelf(true);
       this.onFeed('🗺️ ساحة ' + this.theme.name);
@@ -296,6 +296,7 @@
       this.burst(q.tx, q.ty, '#ff9f43', 40, 420);
       this.burst(q.tx, q.ty, '#ffd32a', 24, 300);
       this.shakeUntil = Math.max(this.shakeUntil, performance.now() + 280);
+      for (const o of this.barrels) { if (!o.dead && Math.hypot(o.x - q.tx, o.y - q.ty) < R) setTimeout(() => this.explodeBarrel(o), 120); }
       if (q.uid === this.me.uid) {
         for (const bt of this.bots) {
           if (bt.alive && Math.hypot(bt.x - q.tx, bt.y - q.ty) < R) {
@@ -323,10 +324,49 @@
     spawnWave(nowB) {
       const n = Math.min(9, 2 + this.wave);
       this.bots = [];
+      this.barrels = [];
+      for (let k = 0; k < 6; k++) { const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 131 + 7)); this.barrels.push({ x: p.x, y: p.y, hp: 2, dead: false }); }
+      if (this.wave % 5 === 0) {
+        const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + 999));
+        this.bots.push({ id: 'bot99', name: '👑 الزعيم', boss: true, x: p.x, y: p.y, hp: 300, alive: true, angle: 0, lastFire: nowB + 1500, respawnAt: 0, phase: 0, color: 1 });
+        this.onFeed('👑 زعيم ظهر! ٣٠٠ صحة وبيضرب ٣ طلقات');
+      }
       for (let k = 0; k < n; k++) {
         const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 77));
         this.bots.push({ id: 'bot' + k, name: '🤖 بوت ' + (k + 1), x: p.x, y: p.y, hp: MAX_HP, alive: true, angle: 0, lastFire: nowB + 1200 + k * 400, respawnAt: 0, phase: Math.random() * 6, color: 3 + (k % 5) });
       }
+    },
+
+    explodeBarrel(br) {
+      if (br.dead) return;
+      br.dead = true;
+      const R = 140;
+      this.rings.push({ x: br.x, y: br.y, age: 0, life: 0.6, R });
+      this.burst(br.x, br.y, '#ff6b35', 44, 440);
+      this.burst(br.x, br.y, '#ffd32a', 22, 300);
+      this.shakeUntil = Math.max(this.shakeUntil, performance.now() + 320);
+      Sfx.kill();
+      for (const bt of this.bots) {
+        if (bt.alive && Math.hypot(bt.x - br.x, bt.y - br.y) < R) {
+          bt.hp -= 50;
+          this.burst(bt.x, bt.y, '#ff6b81', 8, 180);
+          if (bt.hp <= 0) {
+            bt.alive = false; bt.respawnAt = performance.now() + 3000;
+            this.burst(bt.x, bt.y, '#ffd32a', 28, 300);
+            this.onFeed('🛢️ البرميل فجّر ' + bt.name);
+            this.ach('kill');
+            this.db.ref('rooms/' + this.roomCode + '/players/' + this.me.uid + '/kills').transaction((k) => (k || 0) + 1).catch(() => {});
+          }
+        }
+      }
+      if (this.myAlive && performance.now() > this.protectedUntil && Math.hypot(this.myX - br.x, this.myY - br.y) < R) {
+        if (performance.now() < this.shieldUntil) this.onFeed('🛡️ الدرع صدّ الانفجار!');
+        else {
+          this.myHp -= 40; this.onHud(this.myHp); this.writeSelf(true); Sfx.hit();
+          if (this.myHp <= 0) { this.burst(this.myX, this.myY, '#ffd32a', 30, 320); this.die('bot_barrel'); }
+        }
+      }
+      for (const o of this.barrels) { if (!o.dead && Math.hypot(o.x - br.x, o.y - br.y) < R) setTimeout(() => this.explodeBarrel(o), 150); }
     },
 
     zoneInfo() {
@@ -620,7 +660,7 @@
         if (this.myAlive && dist < 650 && nowB - bt.lastFire > lvl.fire) {
           bt.lastFire = nowB + Math.random() * 500;
           const a = bt.angle + (Math.random() - 0.5) * lvl.err;
-          this.bullets.push({ id: bt.id + '_' + Math.floor(nowB), uid: bt.id, x: bt.x + Math.cos(a) * (PLAYER_R + 6), y: bt.y + Math.sin(a) * (PLAYER_R + 6), dx: Math.cos(a), dy: Math.sin(a), age: 0 });
+          (bt.boss ? [-0.25, 0, 0.25] : [0]).forEach((off, q) => { const a2 = a + off; this.bullets.push({ id: bt.id + '_' + Math.floor(nowB) + '_' + q, uid: bt.id, x: bt.x + Math.cos(a2) * (PLAYER_R + 6), y: bt.y + Math.sin(a2) * (PLAYER_R + 6), dx: Math.cos(a2), dy: Math.sin(a2), age: 0 }); });
         }
       }
 
@@ -630,6 +670,15 @@
         b.y += b.dy * BULLET_SPEED * dt;
         b.age += dt;
         let dead = b.age > BULLET_LIFE || b.x < 0 || b.x > WORLD || b.y < 0 || b.y > WORLD;
+        if (!dead) {
+          for (const br of this.barrels) {
+            if (!br.dead && Math.hypot(b.x - br.x, b.y - br.y) < 26) {
+              dead = true; br.hp--; this.burst(br.x, br.y, '#ff9f43', 6, 160);
+              if (br.hp <= 0) this.explodeBarrel(br);
+              break;
+            }
+          }
+        }
         if (!dead) {
           for (const o of this.obstacles) {
             if (b.x > o.x && b.x < o.x + o.w && b.y > o.y && b.y < o.y + o.h) { dead = true; break; }
@@ -900,6 +949,13 @@
       }
       ctx.globalAlpha = 1;
 
+      for (const br of this.barrels) {
+        if (br.dead) continue;
+        ctx.fillStyle = br.hp < 2 ? '#c0392b' : '#e67e22'; ctx.strokeStyle = '#2d1b00'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(br.x, br.y, 22, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.font = '24px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff';
+        ctx.fillText('\u{1F6E2}', br.x, br.y + 1);
+      }
       for (const r of this.rings) {
         const k = r.age / r.life;
         ctx.globalAlpha = 1 - k; ctx.strokeStyle = '#ff9f43'; ctx.lineWidth = 6 * (1 - k) + 1;
@@ -987,7 +1043,7 @@
         if (hp > 0) { roundRect(ctx, x - 22, y - PLAYER_R - 10, 44 * Math.max(0, hp) / MAX_HP, 6, 3); ctx.fill(); }
         ctx.globalAlpha = 1;
       };
-      for (const bt of this.bots) drawPlayer(bt.id, { name: bt.name, avatar: '🤖', color: bt.color, x: bt.x, y: bt.y, alive: bt.alive, hp: bt.hp, angle: bt.angle }, false);
+      for (const bt of this.bots) drawPlayer(bt.id, { name: bt.name, avatar: bt.boss ? '👹' : '🤖', color: bt.color, x: bt.x, y: bt.y, alive: bt.alive, hp: Math.min(bt.hp, MAX_HP), angle: bt.angle }, false);
       for (const uid in this.players) drawPlayer(uid, this.players[uid], false);
       drawPlayer(this.me.uid, { name: this.me.name, avatar: this.me.avatar, color: this.me.color }, true);
 
