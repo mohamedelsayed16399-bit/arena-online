@@ -322,6 +322,7 @@
 
     coin(n) { if (this.mod === 'loot' && this.bots.length) n *= 2; try { localStorage.setItem('arena_coins', String((+localStorage.getItem('arena_coins') || 0) + n)); } catch (err) { /* ignore */ } },
     bulletColor() { try { return (window.ARENA_SKINS || {})[localStorage.getItem('arena_skin') || 'gold'] || '#ffd32a'; } catch (err) { return '#ffd32a'; } },
+    nDrone() { return (this.up.drone || 0) + (performance.now() < (this.droneTmpUntil || 0) ? 2 : 0); },
     ach(type, val) { if (type === 'kill') { const cn = performance.now(); this.combo = (this._comboAt && cn - this._comboAt < 4000) ? (this.combo || 0) + 1 : 1; this._comboAt = cn; if (this.combo >= 2) { const cx = this.combo; this.modBanner = { text: (cx === 2 ? '✌️ ثنائية!' : cx === 3 ? '🔥 ثلاثية! +٢ عملة' : cx === 4 ? '💥 رباعية! +٣ عملة' : '☠️ مجزرة ×' + cx + '! +٥ عملة'), until: cn + 1800 }; if (cx >= 3) this.coin(cx === 3 ? 2 : cx === 4 ? 3 : 5); this.ult = Math.min(100, (this.ult || 0) + 5 * cx); try { Sfx.horn(); } catch (e2) { /* ignore */ } } this.coin(1); this.ult = Math.min(100, (this.ult || 0) + 20); } else if (type === 'wave') this.ult = Math.min(100, (this.ult || 0) + 30); if (type === 'kill') { /* coin above */ } else if (type === 'wave') this.coin(5); try { if (window.ArenaAch) window.ArenaAch.hit(type, val); } catch (err) { /* ignore */ } },
 
     ultimate() {
@@ -728,7 +729,7 @@
           this.lastPickupSpawn = nowS;
           const rnd = mulberry32(((nowS & 0x7fffffff) >>> 0) ^ this.seed);
           const p = this.freeSpot(rnd);
-          const types = ['hp', 'speed', 'shield', 'rapid', 'triple', 'shotgun', 'homing', 'flame', 'magnet'];
+          const types = ['hp', 'speed', 'shield', 'rapid', 'triple', 'shotgun', 'homing', 'flame', 'magnet', 'drone'];
           const type = types[Math.floor(rnd() * types.length)];
           this.db.ref('rooms/' + this.roomCode + '/pickups').push({ x: Math.round(p.x), y: Math.round(p.y), t: type }).catch(() => {});
         }
@@ -1127,12 +1128,12 @@
       }
 
       // الدرون
-      if (this.up.drone && this.myAlive && this.bots.length) {
+      if (this.nDrone() && this.myAlive && this.bots.length) {
         const nd = performance.now();
         if (nd >= (this.droneAt || 0)) {
           this.droneAt = nd + 1100;
-          for (let j = 0; j < this.up.drone; j++) {
-            const da = nd / 700 + j * (6.283 / this.up.drone), dx0 = this.myX + Math.cos(da) * 52, dy0 = this.myY + Math.sin(da) * 52;
+          for (let j = 0; j < this.nDrone(); j++) {
+            const da = nd / 700 + j * (6.283 / this.nDrone()), dx0 = this.myX + Math.cos(da) * 52, dy0 = this.myY + Math.sin(da) * 52;
             let best = null, bd = 650;
             for (const bt of this.bots) { if (bt.alive) { const dd = Math.hypot(bt.x - dx0, bt.y - dy0); if (dd < bd) { bd = dd; best = bt; } } }
             if (best) { const aa = Math.atan2(best.y - dy0, best.x - dx0); this.bullets.push({ id: 'drn' + Math.floor(nd) + j, uid: this.me.uid, x: dx0, y: dy0, dx: Math.cos(aa), dy: Math.sin(aa), age: 0, life: 0.9 }); }
@@ -1228,6 +1229,8 @@
           } else if (type === 'shotgun') {
             this.weapon = 'shotgun'; this.weaponUntil = performance.now() + 10000;
             this.onFeed('💥 شوتجن ١٠ ثواني! ٥ طلقات في الضربة');
+          } else if (type === 'drone') {
+            this.droneTmpUntil = performance.now() + 15000; this.onFeed('🚁 درونين مساعدين ١٥ ثانية! بيضربوا أقرب بوت');
           } else if (type === 'magnet') {
             this.magnetUntil = performance.now() + 10000; this.onFeed('🧲 مغناطيس ١٠ ثواني! بيجذب كل العلب في دايرة كبيرة');
           } else if (type === 'flame') {
@@ -1402,7 +1405,7 @@
       for (const pid in this.pickups) {
         const pk = this.pickups[pid];
         const type = pk.t || 'hp';
-        const col = type === 'speed' ? '#ffa502' : type === 'shield' ? '#1e90ff' : type === 'rapid' ? '#a55eea' : type === 'triple' ? '#fd79a8' : type === 'shotgun' ? '#ff6348' : type === 'homing' ? '#ff9f43' : type === 'flame' ? '#ff4500' : type === 'magnet' ? '#e84393' : '#2ed573';
+        const col = type === 'speed' ? '#ffa502' : type === 'shield' ? '#1e90ff' : type === 'rapid' ? '#a55eea' : type === 'triple' ? '#fd79a8' : type === 'shotgun' ? '#ff6348' : type === 'homing' ? '#ff9f43' : type === 'flame' ? '#ff4500' : type === 'magnet' ? '#e84393' : type === 'drone' ? '#00cec9' : '#2ed573';
         ctx.fillStyle = col;
         ctx.shadowColor = col; ctx.shadowBlur = 12;
         roundRect(ctx, pk.x - 13, pk.y - 13, 26, 26, 7);
@@ -1415,7 +1418,7 @@
         } else {
           ctx.font = '16px serif';
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText(type === 'speed' ? '👟' : type === 'rapid' ? '🔫' : type === 'triple' ? '🔱' : type === 'shotgun' ? '💥' : type === 'homing' ? '🚀' : type === 'flame' ? '🔥' : type === 'magnet' ? '🧲' : '🛡️', pk.x, pk.y + 1);
+          ctx.fillText(type === 'speed' ? '👟' : type === 'rapid' ? '🔫' : type === 'triple' ? '🔱' : type === 'shotgun' ? '💥' : type === 'homing' ? '🚀' : type === 'flame' ? '🔥' : type === 'magnet' ? '🧲' : type === 'drone' ? '🚁' : '🛡️', pk.x, pk.y + 1);
         }
       }
 
@@ -1564,9 +1567,9 @@
         if (hp > 0) { roundRect(ctx, x - 22, y - PLAYER_R - 10, 44 * Math.max(0, hp) / MAX_HP, 6, 3); ctx.fill(); }
         ctx.globalAlpha = 1;
       };
-      if (this.up.drone && this.myAlive) {
-        for (let j = 0; j < this.up.drone; j++) {
-          const da = performance.now() / 700 + j * (6.283 / this.up.drone), px = this.myX + Math.cos(da) * 52, py = this.myY + Math.sin(da) * 52;
+      if (this.nDrone() && this.myAlive) {
+        for (let j = 0; j < this.nDrone(); j++) {
+          const da = performance.now() / 700 + j * (6.283 / this.nDrone()), px = this.myX + Math.cos(da) * 52, py = this.myY + Math.sin(da) * 52;
           ctx.save(); ctx.shadowColor = '#18dcff'; ctx.shadowBlur = 12; ctx.font = '22px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🚁', px, py); ctx.restore();
         }
       }
