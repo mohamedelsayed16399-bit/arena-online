@@ -49,7 +49,7 @@
     respawnAt: 0,
     pickups: {}, lastPickupSpawn: 0,
     muzzleUntil: 0, hitFlashUntil: 0, lastHpShown: null,
-    speedUntil: 0, shieldUntil: 0, protectedUntil: 0, weaponUntil: 0, weapon: '', fx: [], dashUntil: 0, dashCd: 0, gren: [], grenCd: 0, rings: [], gcount: 0, dashX: 0, dashY: 0, mode: 'classic', zpts: 0, zoneAcc: 0, zoneCache: null, bots: [], botCheckAt: 0, botAnnounced: false, shakeUntil: 0, specIdx: 0, lastBurst: 0,
+    speedUntil: 0, shieldUntil: 0, protectedUntil: 0, weaponUntil: 0, weapon: '', fx: [], dashUntil: 0, dashCd: 0, wave: 1, waveAt: 0, waveBanner: null, gren: [], grenCd: 0, rings: [], gcount: 0, dashX: 0, dashY: 0, mode: 'classic', zpts: 0, zoneAcc: 0, zoneCache: null, bots: [], botCheckAt: 0, botAnnounced: false, shakeUntil: 0, specIdx: 0, lastBurst: 0,
     rafId: null, lastTs: 0,
     onRoundEnd: null, onFeed: null, onHud: null,
     seed: 1,
@@ -78,7 +78,7 @@
       this.myX = p.x; this.myY = p.y; this.myAngle = 0;
       this.myHp = MAX_HP; this.myAlive = true;
       this.lastHpShown = MAX_HP; this.muzzleUntil = 0; this.hitFlashUntil = 0;
-      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.specIdx = 0;
+      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.wave = 1; this.waveAt = 0; this.waveBanner = null; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.specIdx = 0;
       this.protectedUntil = performance.now() + 2000; // حماية بداية الجولة
       this.writeSelf(true);
       this.onFeed('🗺️ ساحة ' + this.theme.name);
@@ -317,6 +317,15 @@
           this.shakeUntil = performance.now() + 300;
           if (this.myHp <= 0) { this.burst(this.myX, this.myY, '#ffd32a', 30, 320); this.die(q.uid); }
         }
+      }
+    },
+
+    spawnWave(nowB) {
+      const n = Math.min(9, 2 + this.wave);
+      this.bots = [];
+      for (let k = 0; k < n; k++) {
+        const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 77));
+        this.bots.push({ id: 'bot' + k, name: '🤖 بوت ' + (k + 1), x: p.x, y: p.y, hp: MAX_HP, alive: true, angle: 0, lastFire: nowB + 1200 + k * 400, respawnAt: 0, phase: Math.random() * 6, color: 3 + (k % 5) });
       }
     },
 
@@ -570,21 +579,26 @@
         this.botCheckAt = nowB + 1000;
         const humans = Object.keys(this.players).length;
         if (humans === 0 && this.bots.length === 0) {
-          for (let k = 0; k < 3; k++) {
-            const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 77));
-            this.bots.push({ id: 'bot' + k, name: '🤖 بوت ' + (k + 1), x: p.x, y: p.y, hp: MAX_HP, alive: true, angle: 0, lastFire: nowB + 1200 + k * 400, respawnAt: 0, phase: Math.random() * 6, color: 3 + k });
-          }
-          if (!this.botAnnounced) { this.botAnnounced = true; this.onFeed('🤖 انت لوحدك: ٣ بوتات تدريب انضموا للمعركة'); }
+          this.spawnWave(nowB);
+          if (!this.botAnnounced) { this.botAnnounced = true; this.onFeed('🌊 انت لوحدك: وضع الموجات! اصمد قد ما تقدر'); this.waveBanner = { text: '🌊 الموجة ١', until: nowB + 2200 }; }
         } else if (humans > 0 && this.bots.length) {
           this.bots = [];
           this.onFeed('👥 لاعب حقيقي دخل: البوتات خرجت');
+        }
+      }
+      if (this.bots.length && this.bots.every((q) => !q.alive)) {
+        if (!this.waveAt) { this.waveAt = nowB + 2500; this.onFeed('🌊 الموجة ' + this.wave + ' خلصت! +٣٠ صحة'); Sfx.kill(); this.ach('wave', this.wave); try { const bw = +(localStorage.getItem('arena_bestwave') || 0); if (this.wave > bw) localStorage.setItem('arena_bestwave', String(this.wave)); } catch (err) { /* ignore */ } }
+        else if (nowB >= this.waveAt) {
+          this.wave++; this.waveAt = 0;
+          if (this.myAlive) { this.myHp = Math.min(MAX_HP, this.myHp + 30); this.onHud(this.myHp); this.writeSelf(true); }
+          this.spawnWave(nowB);
+          this.waveBanner = { text: '🌊 الموجة ' + this.wave + ' (' + this.bots.length + ' بوتات)', until: nowB + 2400 };
         }
       }
       let lvl = BOT_LEVELS.normal;
       try { lvl = BOT_LEVELS[localStorage.getItem('arena_bot_diff')] || BOT_LEVELS.normal; } catch (err) { /* ignore */ }
       for (const bt of this.bots) {
         if (!bt.alive) {
-          if (nowB >= bt.respawnAt) { const p = this.freeSpot(mulberry32(Date.now() & 0xffff)); bt.x = p.x; bt.y = p.y; bt.hp = MAX_HP; bt.alive = true; bt.lastFire = nowB + 1000; }
           continue;
         }
         const dxm = this.myX - bt.x, dym = this.myY - bt.y, dist = Math.hypot(dxm, dym) || 1;
@@ -979,6 +993,19 @@
 
       ctx.restore();
 
+      if (this.bots.length) {
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = 'bold 15px Cairo, sans-serif'; ctx.fillStyle = '#7bdff2';
+        ctx.fillText('🌊 موجة ' + this.wave + ' | بوتات: ' + this.bots.filter((q) => q.alive).length, innerWidth / 2, 78);
+        const wb = this.waveBanner;
+        if (wb && performance.now() < wb.until) {
+          const k = (wb.until - performance.now()) / 2400;
+          ctx.globalAlpha = Math.min(1, k * 2.5);
+          ctx.font = 'bold 44px Cairo, sans-serif'; ctx.fillStyle = '#ffd32a'; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.lineWidth = 6;
+          ctx.strokeText(wb.text, innerWidth / 2, innerHeight * 0.3); ctx.fillText(wb.text, innerWidth / 2, innerHeight * 0.3);
+          ctx.globalAlpha = 1;
+        }
+      }
       // وميض أحمر لما اتضرب
       if (performance.now() < this.hitFlashUntil) {
         ctx.fillStyle = 'rgba(255,71,87,0.18)';
