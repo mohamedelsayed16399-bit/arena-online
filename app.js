@@ -106,6 +106,7 @@
     $('btn-leaderboard').onclick = () => { showLeaderboard('wins'); };
     $('btn-rooms').onclick = showRooms;
     $('btn-stats').onclick = showStats;
+    $('btn-gren').onclick = () => { if (window.ArenaGame && ArenaGame.running) ArenaGame.throwGrenade(); };
     $('btn-dash').onclick = () => { if (window.ArenaGame && ArenaGame.running) ArenaGame.dash(); };
     const diffNames = { easy: 'سهل', normal: 'عادي', hard: 'صعب' };
     const diffOrder = ['easy', 'normal', 'hard'];
@@ -633,7 +634,7 @@
   // ============ المتصدرين ============
   const ACH_LIST = [
     ['kill1', '🎯 أول قتلة'], ['kill10', '🔟 ١٠ قتلات'], ['streak3', '🔥 سلسلة ٣ قتلات'],
-    ['dash10', '💨 عدّاء (١٠ داشات)'], ['zone30', '🏁 سيد المنطقة (٣٠ نقطة)'], ['win1', '🏆 أول فوز'], ['pickup5', '🎁 جامع القدرات (٥)'],
+    ['dash10', '💨 عدّاء (١٠ داشات)'], ['zone30', '🏁 سيد المنطقة (٣٠ نقطة)'], ['win1', '🏆 أول فوز'], ['pickup5', '🎁 جامع القدرات (٥)'], ['gren3', '💣 قنّاص (٣ قنابل)'],
   ];
   window.ArenaAch = {
     load() { try { return JSON.parse(localStorage.getItem('arena_ach') || '{}'); } catch (e) { return {}; } },
@@ -650,6 +651,7 @@
       if (type === 'kill') { d.c.kills = (d.c.kills || 0) + 1; this.unlock(d, 'kill1'); if (d.c.kills >= 10) this.unlock(d, 'kill10'); }
       else if (type === 'streak') { if (val >= 3) this.unlock(d, 'streak3'); }
       else if (type === 'dash') { d.c.dashes = (d.c.dashes || 0) + 1; if (d.c.dashes >= 10) this.unlock(d, 'dash10'); }
+      else if (type === 'gren') { d.c.grens = (d.c.grens || 0) + 1; if (d.c.grens >= 3) this.unlock(d, 'gren3'); }
       else if (type === 'zone') { if (val >= 30) this.unlock(d, 'zone30'); }
       else if (type === 'win') { this.unlock(d, 'win1'); }
       else if (type === 'pickup') { d.c.pickups = (d.c.pickups || 0) + 1; if (d.c.pickups >= 5) this.unlock(d, 'pickup5'); }
