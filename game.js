@@ -839,7 +839,7 @@
         }
       }
       if (this.bots.length && this.bots.every((q) => !q.alive)) {
-        if (!this.waveAt) { this.waveAt = nowB + 2500; this.onFeed('🌊 الموجة ' + this.wave + ' خلصت! +٣٠ صحة'); Sfx.kill(); this.ach('wave', this.wave); try { const bw = +(localStorage.getItem('arena_bestwave') || 0); if (this.wave > bw) localStorage.setItem('arena_bestwave', String(this.wave)); } catch (err) { /* ignore */ } }
+        if (!this.waveAt) { this.waveAt = nowB + 2500; this.onFeed('🌊 الموجة ' + this.wave + ' خلصت! +٣٠ صحة'); Sfx.kill(); this.ach('wave', this.wave); try { const wk = this.bossRush ? 'bestRush' : 'bestWave', wn = this.wave; this.db.ref('leaderboard/' + this.me.uid + '/' + wk).transaction((c) => ((c || 0) < wn ? wn : undefined)).catch(() => {}); } catch (err) { /* ignore */ } try { const bw = +(localStorage.getItem('arena_bestwave') || 0); if (this.wave > bw) localStorage.setItem('arena_bestwave', String(this.wave)); } catch (err) { /* ignore */ } }
         else if (nowB >= this.waveAt && !this.upDone) { this.upDone = true; this.pickWait = true; this.showUpgrades(); }
         else if (nowB >= this.waveAt && !this.pickWait) {
           this.wave++; this.waveAt = 0; this.upDone = false;
