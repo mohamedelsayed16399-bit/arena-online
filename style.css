@@ -93,7 +93,7 @@ input:focus { border-color:var(--primary); }
 @keyframes hppulse { from { opacity:1; } to { opacity:.45; } }
 #hud-mode { background:rgba(255,165,2,.85); color:#1a1d29; border-radius:10px; padding:3px 10px; font-size:12px; font-weight:800; }
 #hud-mode:empty { display:none; }
-#emotes { position:absolute; bottom:18px; left:50%; transform:translateX(-50%); display:flex; gap:8px; z-index:6; }
+#emotes { position:absolute; bottom:64px; left:50%; transform:translateX(-50%); display:flex; gap:8px; z-index:6; }
 .emote { font-size:20px; background:rgba(0,0,0,.5); border:1px solid rgba(255,255,255,.18); border-radius:50%; width:42px; height:42px; cursor:pointer; transition:transform .1s; }
 .emote:active { transform:scale(1.25); }
 @media (max-width:640px) { #emotes { bottom:150px; left:14px; transform:none; flex-direction:column; } .emote { width:38px; height:38px; font-size:17px; } }
