@@ -133,6 +133,7 @@
     $('btn-start').onclick = () => hostStartRound('classic');
     $('btn-start-blitz').onclick = () => hostStartRound('blitz');
     $('btn-start-zone').onclick = () => hostStartRound('zone');
+    $('btn-start-gems').onclick = () => hostStartRound('gems');
     $('btn-start-storm').onclick = () => hostStartRound('storm');
     $('btn-send-chat').onclick = sendChat;
     $('input-chat').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
@@ -389,6 +390,7 @@
     $('btn-start').classList.toggle('hidden', !isHost);
     $('btn-start-blitz').classList.toggle('hidden', !isHost);
     $('btn-start-zone').classList.toggle('hidden', !isHost);
+    $('btn-start-gems').classList.toggle('hidden', !isHost);
     $('btn-start-storm').classList.toggle('hidden', !isHost);
     $('lobby-hint').textContent = isHost
       ? 'انت الهوست — لما الكل يجهز اضغط ابدأ (أو ابدأ لوحدك)'
@@ -404,7 +406,7 @@
   function hostStartRound(mode) {
     window._lastMode = mode;
     if (!isHost || !roomCode) return;
-    const secs = mode === 'blitz' ? 60 : mode === 'zone' ? 90 : mode === 'storm' ? 90 : ROUND_SECONDS;
+    const secs = mode === 'blitz' ? 60 : mode === 'zone' ? 90 : mode === 'gems' ? 90 : mode === 'storm' ? 90 : ROUND_SECONDS;
     const endsAt = Date.now() + secs * 1000 + 4000; // +٤ ثواني هامش سيرفر
     db.ref('rooms/' + roomCode + '/state').set({
       endsAt,
@@ -445,7 +447,7 @@
   function startGame(endsAt, mode) {
     if ($('screen-game').classList.contains('active') && window.ArenaGame.running) return;
     show('game');
-    $('hud-mode').textContent = mode === 'blitz' ? '⚡ بليتز' : mode === 'zone' ? '🎯 السيطرة' : mode === 'storm' ? '🌪️ العاصفة' : '';
+    $('hud-mode').textContent = mode === 'blitz' ? '⚡ بليتز' : mode === 'zone' ? '🎯 السيطرة' : mode === 'gems' ? '💎 صيد الجواهر' : mode === 'storm' ? '🌪️ العاصفة' : '';
     ArenaGame.start({
       db, roomCode,
       me: { uid, name: profile.name, avatar: profile.avatar, color: myColor, joinedAt: myJoinedAt },
@@ -518,7 +520,7 @@
       d.innerHTML = `<span class="r-rank">${medals[i] || (i + 1)}</span>
         <span>${r.avatar || '🦊'}</span>
         <span class="r-name">${esc(r.name)}${r.uid === uid ? ' (انت)' : ''}</span>
-        <span class="r-score">${ArenaGame.mode === 'zone' ? '🎯 ' + (r.zpts || 0) + ' | ' : ''}☠️ ${r.kills} | 💀 ${r.deaths}</span>`;
+        <span class="r-score">${ArenaGame.mode === 'gems' ? '💎 ' + (r.zpts || 0) + ' | ' : ''}${ArenaGame.mode === 'zone' ? '🎯 ' + (r.zpts || 0) + ' | ' : ''}☠️ ${r.kills} | 💀 ${r.deaths}</span>`;
       list.appendChild(d);
     });
     (function () {
