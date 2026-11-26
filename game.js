@@ -18,6 +18,7 @@
     { name: 'صحرا', bg0: '#2a1f12', bg1: '#1a1209', ob: '#5a4326', obs: 'rgba(255,214,150,0.18)' },
     { name: 'تلج', bg0: '#0f2430', bg1: '#08141c', ob: '#2c5a73', obs: 'rgba(180,235,255,0.22)' },
     { name: 'حمم', bg0: '#2a0f0f', bg1: '#150606', ob: '#4a1d1d', obs: 'rgba(255,120,80,0.28)' },
+    { name: 'فضاء', bg0: '#160b2e', bg1: '#070312', ob: '#3b2a73', obs: 'rgba(190,150,255,0.28)' },
   ];
   const BOT_LEVELS = { easy: { fire: 1600, err: 0.9, spd: 110 }, normal: { fire: 950, err: 0.45, spd: 150 }, hard: { fire: 600, err: 0.18, spd: 190 } };
   const PALETTE = ['#ff4757', '#2ed573', '#1e90ff', '#ffa502', '#eccc68', '#7bed9f', '#70a1ff', '#ff6b81'];
@@ -80,7 +81,7 @@
       this.myX = p.x; this.myY = p.y; this.myAngle = 0;
       this.myHp = MAX_HP; this.myAlive = true;
       this.lastHpShown = MAX_HP; this.muzzleUntil = 0; this.hitFlashUntil = 0;
-      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.rs = { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }; this.barrels = []; this.wave = 1; this.waveAt = 0; this.waveBanner = null; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.specIdx = 0; this.ult = 0; this.meteors = []; this.up = { dmg: 0, spd: 0, rate: 0, steal: 0, arm: 0, drone: 0 }; this.upDone = false; this.pickWait = false; this.hideUpgrades();
+      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.rs = { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }; this.barrels = []; this.wave = 1; this.waveAt = 0; this.waveBanner = null; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.wasHole = false; this.specIdx = 0; this.ult = 0; this.meteors = []; this.up = { dmg: 0, spd: 0, rate: 0, steal: 0, arm: 0, drone: 0 }; this.upDone = false; this.pickWait = false; this.hideUpgrades();
       this.protectedUntil = performance.now() + 2000; // حماية بداية الجولة
       this.writeSelf(true);
       this.onFeed('🗺️ ساحة ' + this.theme.name);
@@ -162,6 +163,11 @@
     buildHazards() {
       this.hazards = [];
       const nm = this.theme && this.theme.name;
+      if (nm === 'فضاء') {
+        const rs = mulberry32(((this.seed * 31 + 777) >>> 0));
+        for (let k = 0; k < 4; k++) { const p = this.freeSpot(rs); this.hazards.push({ x: p.x, y: p.y, r: 190, type: 'hole' }); }
+        return;
+      }
       if (nm !== 'حمم' && nm !== 'تلج') return;
       const rnd = mulberry32(((this.seed * 31 + 555) >>> 0));
       const n = nm === 'حمم' ? 5 : 4;
@@ -557,6 +563,8 @@
       ref.update({ alive: false, hp: 0, deaths: this.deaths }).catch(() => {});
       if (killerUid === 'storm') {
         this.onFeed('🌪️ العاصفة قتلتك');
+      } else if (killerUid === 'hole') {
+        this.onFeed('🕳️ الثقب الأسود بلعك');
       } else if (killerUid === 'lava') {
         this.onFeed('🌋 الحمم قتلتك');
       } else if (killerUid && String(killerUid).indexOf('bot') === 0) {
@@ -705,6 +713,19 @@
         if (this.joyL.active) { mx = this.joyL.dx; my = this.joyL.dy; }
         const dashing = performance.now() < this.dashUntil;
         if (dashing) { mx = this.dashX; my = this.dashY; }
+        if (this.myAlive && !dashing) {
+          for (const hz of (this.hazards || [])) {
+            if (hz.type !== 'hole') continue;
+            const hd = Math.hypot(hz.x - this.myX, hz.y - this.myY);
+            if (hd < hz.r) {
+              if (!this.wasHole) { this.wasHole = true; this.onFeed('🕳️ ثقب أسود بيسحبك! ابعد أو اعمل داش'); }
+              const f = (1 - hd / hz.r) * 230 * dt / (hd || 1), px = this.myX + (hz.x - this.myX) * f, py = this.myY + (hz.y - this.myY) * f;
+              if (!this.obstacles.some((o) => circleRect(px, py, PLAYER_R, o))) { this.myX = px; this.myY = py; }
+              this.shakeUntil = Math.max(this.shakeUntil, performance.now() + 60);
+              if (hd < 36 && performance.now() > this.protectedUntil) { this.burst(this.myX, this.myY, '#a55eea', 30, 320); this.myHp = 0; this.onHud(0); this.die('hole'); break; }
+            }
+          }
+        }
         const onIce = (this.hazards || []).some((h) => h.type === 'ice' && Math.hypot(this.myX - h.x, this.myY - h.y) < h.r);
         if (onIce && !dashing) { const kk = Math.min(1, dt * 1.8); this.smx = (this.smx || 0) + (mx - (this.smx || 0)) * kk; this.smy = (this.smy || 0) + (my - (this.smy || 0)) * kk; mx = this.smx; my = this.smy; if (Math.random() < 0.15) this.burst(this.myX, this.myY, '#cfefff', 1, 40); } else { this.smx = mx; this.smy = my; }
         const len = Math.hypot(mx, my);
@@ -847,6 +868,15 @@
           const dd = Math.hypot(stB.x - bt.x, stB.y - bt.y) || 1; mvx = (stB.x - bt.x) / dd; mvy = (stB.y - bt.y) / dd;
           if (Math.hypot(bt.x - stB.x, bt.y - stB.y) > stB.r) { bt.hp -= 8 * dt; if (Math.random() < 0.1) this.burst(bt.x, bt.y, '#c0392b', 2, 80); if (bt.hp <= 0) { bt.alive = false; bt.respawnAt = performance.now() + 3000; this.burst(bt.x, bt.y, '#ffd32a', 28, 300); this.onFeed('🌪️ العاصفة قضت على ' + bt.name); continue; } }
         }
+        for (const hz of (this.hazards || [])) {
+          if (hz.type !== 'hole') continue;
+          const hd2 = Math.hypot(hz.x - bt.x, hz.y - bt.y);
+          if (hd2 < hz.r) {
+            const f2 = (1 - hd2 / hz.r) * 150 * dt / (hd2 || 1); bt.x += (hz.x - bt.x) * f2; bt.y += (hz.y - bt.y) * f2;
+            if (hd2 < 36) { bt.alive = false; bt.respawnAt = performance.now() + 3000; this.burst(bt.x, bt.y, '#a55eea', 24, 300); this.onFeed('🕳️ الثقب الأسود بلع ' + bt.name); break; }
+          }
+        }
+        if (!bt.alive) continue;
         for (const hz of (this.hazards || [])) {
           if (hz.type !== 'lava') continue;
           const hd = Math.hypot(bt.x - hz.x, bt.y - hz.y);
@@ -1155,6 +1185,15 @@
 
       for (const h of (this.hazards || [])) {
         const tt = performance.now() / 1000;
+        if (h.type === 'hole') {
+          const sp = tt * 1.6;
+          ctx.save(); ctx.translate(h.x, h.y);
+          const hg = ctx.createRadialGradient(0, 0, 8, 0, 0, h.r); hg.addColorStop(0, 'rgba(0,0,0,1)'); hg.addColorStop(0.25, 'rgba(10,0,30,0.95)'); hg.addColorStop(0.6, 'rgba(110,50,200,0.35)'); hg.addColorStop(1, 'rgba(110,50,200,0.04)');
+          ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(0, 0, h.r, 0, 6.283); ctx.fill();
+          for (let q = 0; q < 3; q++) { ctx.rotate(sp + q * 2.1); ctx.strokeStyle = 'rgba(190,140,255,' + (0.5 - q * 0.12) + ')'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(0, 0, h.r * (0.9 - q * 0.22), h.r * (0.32 - q * 0.05), 0, 0, 4.2); ctx.stroke(); }
+          ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(0, 0, 36, 0, 6.283); ctx.fill(); ctx.strokeStyle = '#c79bff'; ctx.lineWidth = 3; ctx.stroke();
+          ctx.restore(); continue;
+        }
         const gr = ctx.createRadialGradient(h.x, h.y, 10, h.x, h.y, h.r);
         if (h.type === 'lava') {
           const pl = 0.75 + 0.25 * Math.sin(tt * 3 + h.x);
@@ -1443,7 +1482,7 @@
       c.clearRect(0, 0, S, S);
       c.fillStyle = 'rgba(255,255,255,0.18)';
       for (const o of this.obstacles) c.fillRect(o.x * sc, o.y * sc, Math.max(2, o.w * sc), Math.max(2, o.h * sc));
-      for (const h of (this.hazards || [])) { c.fillStyle = h.type === 'lava' ? 'rgba(255,90,30,0.65)' : 'rgba(160,225,255,0.4)'; c.beginPath(); c.arc(h.x * sc, h.y * sc, h.r * sc, 0, Math.PI * 2); c.fill(); }
+      for (const h of (this.hazards || [])) { c.fillStyle = h.type === 'hole' ? 'rgba(160,90,255,0.7)' : h.type === 'lava' ? 'rgba(255,90,30,0.65)' : 'rgba(160,225,255,0.4)'; c.beginPath(); c.arc(h.x * sc, h.y * sc, h.r * sc, 0, Math.PI * 2); c.fill(); }
       const sm = this.stormInfo();
       if (sm) { c.strokeStyle = '#ff4757'; c.lineWidth = 2; c.beginPath(); c.arc(sm.x * sc, sm.y * sc, sm.r * sc, 0, Math.PI * 2); c.stroke(); }
       if (this.mode === 'gems') { c.fillStyle = '#18dcff'; for (const gm of this.gemList()) { if (!this.gemTaken[gm.key]) { c.fillRect(gm.x * sc - 1.5, gm.y * sc - 1.5, 3, 3); } } }
