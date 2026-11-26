@@ -7,7 +7,7 @@
 <title>ساحة الأبطال | لعبة أونلاين جماعية</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=15">
+<link rel="stylesheet" href="style.css?v=16">
 </head>
 <body>
 <div id="app">
@@ -51,6 +51,7 @@
         <button id="btn-rooms" class="btn btn-ghost">🚪 الغرف العامة</button>
         <button id="btn-botdiff" class="btn btn-ghost">🤖 صعوبة البوتات: عادي</button>
         <button id="btn-stats" class="btn btn-ghost">📊 إحصائياتي</button>
+        <button id="btn-shop" class="btn btn-ghost">🛍️ المتجر</button>
         <button id="btn-leaderboard" class="btn btn-ghost">🏆 المتصدرون</button>
         <button id="btn-friends" class="btn btn-ghost">👥 الأصدقاء</button>
         <button id="btn-how" class="btn btn-ghost">❓ إزاي تلعب</button>
@@ -157,6 +158,14 @@
     <button id="btn-back-from-fr" class="btn btn-ghost">رجوع</button>
   </section>
 
+  <!-- المتجر -->
+  <section id="screen-shop" class="screen">
+    <h1>🛍️ متجر الطلقات</h1>
+    <div class="card stats-card"><div id="shop-coins" class="shop-coins"></div><div id="shop-list"></div>
+    <p class="subtitle">العملات: كل قتل +١، كل موجة +٥، الجواهر +١/+٣</p></div>
+    <button id="btn-back-from-shop" class="btn btn-ghost">رجوع</button>
+  </section>
+
   <!-- شاشة الإحصائيات -->
   <section id="screen-stats" class="screen">
     <h1>📊 إحصائياتي</h1>
@@ -186,7 +195,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="firebase-config.js?v=8"></script>
-<script src="game.js?v=34"></script>
-<script src="app.js?v=19"></script>
+<script src="game.js?v=35"></script>
+<script src="app.js?v=20"></script>
 </body>
 </html>
