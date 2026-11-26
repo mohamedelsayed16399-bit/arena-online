@@ -113,7 +113,8 @@
     // اللوبي
     $('btn-leave-lobby').onclick = () => leaveRoom();
     $('btn-ready').onclick = toggleReady;
-    $('btn-start').onclick = hostStartRound;
+    $('btn-start').onclick = () => hostStartRound('classic');
+    $('btn-start-blitz').onclick = () => hostStartRound('blitz');
     $('btn-send-chat').onclick = sendChat;
     $('input-chat').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
 
@@ -321,7 +322,7 @@
       if (meta.state === 'playing') {
         db.ref('rooms/' + code + '/state').once('value', (st) => {
           const state = st.val() || {};
-          startGame(state.endsAt || (Date.now() + ROUND_SECONDS * 1000));
+          startGame(state.endsAt || (Date.now() + ROUND_SECONDS * 1000), state.mode || 'classic');
         });
       } else if (meta.state === 'ended') {
         showResults();
@@ -363,6 +364,7 @@
     });
     $('btn-ready').textContent = meReady ? '⏳ مستني الباقي' : '✋ جاهز';
     $('btn-start').classList.toggle('hidden', !isHost);
+    $('btn-start-blitz').classList.toggle('hidden', !isHost);
     $('lobby-hint').textContent = isHost
       ? 'انت الهوست — لما الكل يجهز اضغط ابدأ (أو ابدأ لوحدك)'
       : 'شارك الكود مع صحابك عشان ينضموا';
@@ -374,11 +376,13 @@
     ref.once('value', (s) => ref.set(!s.val()));
   }
 
-  function hostStartRound() {
+  function hostStartRound(mode) {
     if (!isHost || !roomCode) return;
-    const endsAt = Date.now() + ROUND_SECONDS * 1000 + 4000; // +٤ ثواني هامش سيرفر
+    const secs = mode === 'blitz' ? 60 : ROUND_SECONDS;
+    const endsAt = Date.now() + secs * 1000 + 4000; // +٤ ثواني هامش سيرفر
     db.ref('rooms/' + roomCode + '/state').set({
       endsAt,
+      mode: mode || 'classic',
       startedBy: uid,
       ts: firebase.database.ServerValue.TIMESTAMP,
     }).then(() => db.ref('rooms/' + roomCode + '/meta').update({ state: 'playing' }))
@@ -412,9 +416,10 @@
   }
 
   // ============ اللعب ============
-  function startGame(endsAt) {
+  function startGame(endsAt, mode) {
     if ($('screen-game').classList.contains('active') && window.ArenaGame.running) return;
     show('game');
+    $('hud-mode').textContent = mode === 'blitz' ? '⚡ بليتز' : '';
     ArenaGame.start({
       db, roomCode,
       me: { uid, name: profile.name, avatar: profile.avatar, color: myColor, joinedAt: myJoinedAt },
