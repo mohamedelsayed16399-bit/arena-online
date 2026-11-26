@@ -43,6 +43,7 @@
     respawnAt: 0,
     pickups: {}, lastPickupSpawn: 0,
     muzzleUntil: 0, hitFlashUntil: 0, lastHpShown: null,
+    speedUntil: 0, shieldUntil: 0, protectedUntil: 0,
     rafId: null, lastTs: 0,
     onRoundEnd: null, onFeed: null, onHud: null,
     seed: 1,
@@ -69,6 +70,8 @@
       this.myX = p.x; this.myY = p.y; this.myAngle = 0;
       this.myHp = MAX_HP; this.myAlive = true;
       this.lastHpShown = MAX_HP; this.muzzleUntil = 0; this.hitFlashUntil = 0;
+      this.speedUntil = 0; this.shieldUntil = 0;
+      this.protectedUntil = performance.now() + 2000; // حماية بداية الجولة
       this.writeSelf(true);
       this.lastTs = performance.now();
       const loop = (ts) => {
@@ -190,6 +193,11 @@
         const i = this.bullets.findIndex(b => b.id === e.bulletId);
         if (i >= 0) this.bullets.splice(i, 1);
         if (e.target === this.me.uid) Sfx.hit();
+      } else if (e.t === 'emote') {
+        if (e.uid !== this.me.uid) {
+          const n = (this.players[e.uid] && this.players[e.uid].name) || 'لاعب';
+          this.onFeed(n + ': ' + e.e);
+        }
       } else if (e.t === 'kill') {
         const killer = e.by === this.me.uid ? (this.me.name) : (this.players[e.by] && this.players[e.by].name) || 'لاعب';
         const victim = e.target === this.me.uid ? (this.me.name) : (this.players[e.target] && this.players[e.target].name) || 'لاعب';
@@ -212,6 +220,16 @@
         x: Math.round(this.myX), y: Math.round(this.myY),
         angle: Math.round(this.myAngle * 100) / 100,
         hp: this.myHp, alive: this.myAlive,
+        sh: performance.now() < this.shieldUntil ? 1 : 0,
+      }).catch(() => {});
+    },
+
+    sendEmote(e) {
+      if (!this.running) return;
+      this.onFeed(this.me.name + ': ' + e);
+      this.db.ref('rooms/' + this.roomCode + '/events').push({
+        t: 'emote', uid: this.me.uid, e,
+        ts: firebase.database.ServerValue.TIMESTAMP,
       }).catch(() => {});
     },
 
@@ -349,14 +367,16 @@
       }
       if (hostUid) this.host = hostUid === this.me.uid;
 
-      // الهوست يزرع علب صحة كل ٢٠ ثانية (بحد أقصى ٣)
+      // الهوست يزرع قدرات كل ٢٠ ثانية (بحد أقصى ٣): صحة / تسريع / درع
       if (this.host) {
         const nowS = this.serverNow();
         if (nowS - this.lastPickupSpawn >= 20000 && Object.keys(this.pickups).length < 3) {
           this.lastPickupSpawn = nowS;
           const rnd = mulberry32(((nowS & 0x7fffffff) >>> 0) ^ this.seed);
           const p = this.freeSpot(rnd);
-          this.db.ref('rooms/' + this.roomCode + '/pickups').push({ x: Math.round(p.x), y: Math.round(p.y) }).catch(() => {});
+          const types = ['hp', 'speed', 'shield'];
+          const type = types[Math.floor(rnd() * 3)];
+          this.db.ref('rooms/' + this.roomCode + '/pickups').push({ x: Math.round(p.x), y: Math.round(p.y), t: type }).catch(() => {});
         }
       }
 
@@ -365,6 +385,7 @@
         const rnd = mulberry32(Date.now() & 0xffff);
         const p = this.freeSpot(rnd);
         this.myX = p.x; this.myY = p.y; this.myHp = MAX_HP; this.myAlive = true;
+        this.protectedUntil = performance.now() + 2000; // حماية ثانيتين بعد الريسبون
         this.db.ref('rooms/' + this.roomCode + '/players/' + this.me.uid)
           .update({ x: Math.round(p.x), y: Math.round(p.y), hp: MAX_HP, alive: true }).catch(() => {});
         document.getElementById('respawn-overlay').classList.add('hidden');
@@ -381,7 +402,8 @@
         const len = Math.hypot(mx, my);
         if (len > 0.01) {
           if (len > 1) { mx /= len; my /= len; }
-          let nx = this.myX + mx * SPEED * dt;
+          const spd = performance.now() < this.speedUntil ? SPEED * 1.4 : SPEED;
+          let nx = this.myX + mx * spd * dt;
           let ny = this.myY + my * SPEED * dt;
           nx = Math.max(PLAYER_R, Math.min(WORLD - PLAYER_R, nx));
           ny = Math.max(PLAYER_R, Math.min(WORLD - PLAYER_R, ny));
@@ -421,9 +443,14 @@
             if (b.x > o.x && b.x < o.x + o.w && b.y > o.y && b.y < o.y + o.h) { dead = true; break; }
           }
         }
-        // إصابتي أنا (كل جهاز مسؤول عن لاعبه)
-        if (!dead && b.uid !== this.me.uid && this.myAlive) {
-          if (Math.hypot(b.x - this.myX, b.y - this.myY) < PLAYER_R + 4) {
+        // إصابتي أنا (كل جهاز مسؤول عن لاعبه) — الدرع والحماية بيصدّوا
+        if (!dead && b.uid !== this.me.uid && this.myAlive && performance.now() > this.protectedUntil) {
+          if (performance.now() < this.shieldUntil) {
+            if (Math.hypot(b.x - this.myX, b.y - this.myY) < PLAYER_R + 4) {
+              dead = true;
+              this.onFeed('🛡️ الدرع صدّ طلقة!');
+            }
+          } else if (Math.hypot(b.x - this.myX, b.y - this.myY) < PLAYER_R + 4) {
             dead = true;
             this.myHp -= BULLET_DMG;
             this.onHud(this.myHp);
@@ -457,18 +484,27 @@
       // ابعت موقعي
       if (this.myAlive) this.writeSelf(false);
 
-      // التقاط علب الصحة
-      if (this.myAlive && this.myHp < MAX_HP) {
+      // التقاط القدرات
+      if (this.myAlive) {
         for (const pid in this.pickups) {
           const pk = this.pickups[pid];
           const pdx = pk.x - this.myX, pdy = pk.y - this.myY;
-          if (pdx * pdx + pdy * pdy < (PLAYER_R + 16) * (PLAYER_R + 16)) {
+          if (pdx * pdx + pdy * pdy >= (PLAYER_R + 16) * (PLAYER_R + 16)) continue;
+          const type = pk.t || 'hp';
+          if (type === 'hp') {
+            if (this.myHp >= MAX_HP) continue; // بلاش نهدّر العلبة واحنا مليانين
             this.myHp = Math.min(MAX_HP, this.myHp + 50);
-            this.db.ref('rooms/' + this.roomCode + '/pickups/' + pid).remove().catch(() => {});
             this.onFeed('💊 التقطت علبة صحة (+٥٠)');
-            this.writeSelf(true);
-            break;
+          } else if (type === 'speed') {
+            this.speedUntil = performance.now() + 8000;
+            this.onFeed('👟 تسريع ٨ ثواني!');
+          } else if (type === 'shield') {
+            this.shieldUntil = performance.now() + 5000;
+            this.onFeed('🛡️ درع ٥ ثواني!');
           }
+          this.db.ref('rooms/' + this.roomCode + '/pickups/' + pid).remove().catch(() => {});
+          this.writeSelf(true);
+          break;
         }
       }
 
@@ -543,17 +579,25 @@
         ctx.stroke();
       }
 
-      // علب الصحة
+      // القدرات
       for (const pid in this.pickups) {
         const pk = this.pickups[pid];
-        ctx.fillStyle = '#2ed573';
-        ctx.shadowColor = '#2ed573'; ctx.shadowBlur = 12;
+        const type = pk.t || 'hp';
+        const col = type === 'speed' ? '#ffa502' : type === 'shield' ? '#1e90ff' : '#2ed573';
+        ctx.fillStyle = col;
+        ctx.shadowColor = col; ctx.shadowBlur = 12;
         roundRect(ctx, pk.x - 13, pk.y - 13, 26, 26, 7);
         ctx.fill();
         ctx.shadowBlur = 0;
         ctx.fillStyle = '#fff';
-        ctx.fillRect(pk.x - 3, pk.y - 9, 6, 18);
-        ctx.fillRect(pk.x - 9, pk.y - 3, 18, 6);
+        if (type === 'hp') {
+          ctx.fillRect(pk.x - 3, pk.y - 9, 6, 18);
+          ctx.fillRect(pk.x - 9, pk.y - 3, 18, 6);
+        } else {
+          ctx.font = '16px serif';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(type === 'speed' ? '👟' : '🛡️', pk.x, pk.y + 1);
+        }
       }
 
       // الطلقات
@@ -596,6 +640,20 @@
           ctx.strokeStyle = 'rgba(255,255,255,0.9)';
           ctx.lineWidth = 3;
           ctx.beginPath(); ctx.arc(x, y, PLAYER_R + 6, 0, Math.PI * 2); ctx.stroke();
+        }
+        // الدرع
+        if ((isMe ? performance.now() < this.shieldUntil : p.sh) && alive) {
+          ctx.strokeStyle = 'rgba(30,144,255,0.85)';
+          ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(x, y, PLAYER_R + 7, 0, Math.PI * 2); ctx.stroke();
+        }
+        // حماية الريسبون (رمشة)
+        if (isMe && alive && performance.now() < this.protectedUntil) {
+          ctx.strokeStyle = 'rgba(255,255,255,' + (0.4 + 0.4 * Math.sin(performance.now() / 90)) + ')';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 5]);
+          ctx.beginPath(); ctx.arc(x, y, PLAYER_R + 11, 0, Math.PI * 2); ctx.stroke();
+          ctx.setLineDash([]);
         }
         // الجسم
         ctx.fillStyle = color;
