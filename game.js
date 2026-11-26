@@ -82,7 +82,7 @@
       this.myX = p.x; this.myY = p.y; this.myAngle = 0;
       this.myHp = MAX_HP; this.myAlive = true;
       this.lastHpShown = MAX_HP; this.muzzleUntil = 0; this.hitFlashUntil = 0;
-      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.rs = { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }; this.barrels = []; this.wave = 1; this.waveAt = 0; this.waveBanner = null; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.wasHole = false; this.specIdx = 0; this.mod = ''; this.ult = 0; this.meteors = []; this.up = { dmg: 0, spd: 0, rate: 0, steal: 0, arm: 0, drone: 0 }; this.upDone = false; this.pickWait = false; this.hideUpgrades();
+      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.rs = { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }; this.barrels = []; this.wave = 1; this.waveAt = 0; this.waveBanner = null; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.wasHole = false; this.specIdx = 0; this.mod = ''; this.ult = 0; this.meteors = []; this.icePools = []; this.up = { dmg: 0, spd: 0, rate: 0, steal: 0, arm: 0, drone: 0 }; this.upDone = false; this.pickWait = false; this.hideUpgrades();
       this.protectedUntil = performance.now() + 2000; // حماية بداية الجولة
       this.writeSelf(true);
       this.onFeed('🗺️ ساحة ' + this.theme.name);
@@ -434,7 +434,7 @@
     hideUpgrades() { const el = document.getElementById('upgrade-picker'); if (el) el.style.display = 'none'; },
 
     spawnWave(nowB) {
-      const wv = this.bossRush ? [1, 10, 15, 20][(this.wave - 1) % 4] : this.wave, sc = this.bossRush ? 1 + 0.3 * Math.floor((this.wave - 1) / 4) : 1;
+      const wv = this.bossRush ? [1, 10, 15, 20, 25][(this.wave - 1) % 5] : this.wave, sc = this.bossRush ? 1 + 0.3 * Math.floor((this.wave - 1) / 5) : 1;
       const MK = Object.keys(MODS);
       this.mod = this.wave >= 2 && !this.bossRush && this.wave % 5 !== 0 && Math.random() < 0.65 ? MK[Math.floor(Math.random() * MK.length)] : '';
       if (this.mod) { this.onFeed('🎲 تعديل الموجة: ' + MODS[this.mod].t); this.modBanner = { text: MODS[this.mod].t, until: performance.now() + 2600 }; }
@@ -444,9 +444,9 @@
       for (let k = 0; k < 6; k++) { const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 131 + 7)); this.barrels.push({ x: p.x, y: p.y, hp: 2, dead: false }); }
       if (this.bossRush || this.wave % 5 === 0) {
         const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + 999));
-        this.bots.push({ id: 'bot99', name: wv >= 20 ? '☄️ زعيم النيازك' : wv >= 15 ? '🌀 زعيم الشبح' : wv >= 10 ? '💀 زعيم الانفجار' : '👑 الزعيم', boss: true, boss2: wv >= 10 && wv < 15, boss3: wv >= 15 && wv < 20, boss4: wv >= 20, nextMet: nowB + 3000, nextTp: nowB + 4500, max: wv >= 20 ? 800 : wv >= 15 ? 600 : wv >= 10 ? 450 : 300, nextBurst: nowB + 3500, x: p.x, y: p.y, hp: wv >= 20 ? 800 : wv >= 15 ? 600 : wv >= 10 ? 450 : 300, alive: true, angle: 0, lastFire: nowB + 1500, respawnAt: 0, phase: 0, color: 1 });
+        this.bots.push({ id: 'bot99', name: wv >= 25 ? '❄️ زعيم الجليد' : wv >= 20 ? '☄️ زعيم النيازك' : wv >= 15 ? '🌀 زعيم الشبح' : wv >= 10 ? '💀 زعيم الانفجار' : '👑 الزعيم', boss: true, boss2: wv >= 10 && wv < 15, boss3: wv >= 15 && wv < 20, boss4: wv >= 20 && wv < 25, boss5: wv >= 25, nextIce: nowB + 3000, nextCharge: nowB + 5000, chargeAt: 0, chargeUntil: 0, nextMet: nowB + 3000, nextTp: nowB + 4500, max: wv >= 25 ? 1000 : wv >= 20 ? 800 : wv >= 15 ? 600 : wv >= 10 ? 450 : 300, nextBurst: nowB + 3500, x: p.x, y: p.y, hp: wv >= 25 ? 1000 : wv >= 20 ? 800 : wv >= 15 ? 600 : wv >= 10 ? 450 : 300, alive: true, angle: 0, lastFire: nowB + 1500, respawnAt: 0, phase: 0, color: 1 });
         if (sc > 1) { const bb = this.bots[this.bots.length - 1]; bb.hp = Math.round(bb.hp * sc); bb.max = bb.hp; }
-        this.onFeed(wv >= 20 ? '☄️ زعيم النيازك! بيمطر نيازك — اتحرك!' : wv >= 15 ? '🌀 زعيم الشبح! بيتنقل وبيستدعي أتباع' : wv >= 10 ? '💀 زعيم الانفجار! دايرة طلقات' : '👑 زعيم ظهر! ٣٠٠ صحة وبيضرب ٣ طلقات'); Sfx.horn();
+        this.onFeed(wv >= 25 ? '❄️ زعيم الجليد! برك تجمّد وهجوم اندفاعي — ابعد عن الخط الأحمر!' : wv >= 20 ? '☄️ زعيم النيازك! بيمطر نيازك — اتحرك!' : wv >= 15 ? '🌀 زعيم الشبح! بيتنقل وبيستدعي أتباع' : wv >= 10 ? '💀 زعيم الانفجار! دايرة طلقات' : '👑 زعيم ظهر! ٣٠٠ صحة وبيضرب ٣ طلقات'); Sfx.horn();
       }
       for (let k = 0; k < n; k++) {
         const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 77));
@@ -740,7 +740,9 @@
         const len = Math.hypot(mx, my);
         if (len > 0.01) {
           if (len > 1) { mx /= len; my /= len; }
-          const spd = dashing ? SPEED * 4.2 : performance.now() < this.speedUntil ? SPEED * 1.4 * (1 + 0.1 * this.up.spd) : SPEED * (1 + 0.1 * this.up.spd);
+          const inIce = (this.icePools || []).some((ip) => performance.now() < ip.until && Math.hypot(this.myX - ip.x, this.myY - ip.y) < ip.r);
+          const spd0 = dashing ? SPEED * 4.2 : performance.now() < this.speedUntil ? SPEED * 1.4 * (1 + 0.1 * this.up.spd) : SPEED * (1 + 0.1 * this.up.spd);
+          const spd = inIce && !dashing ? spd0 * 0.45 : spd0;
           let nx = this.myX + mx * spd * dt;
           let ny = this.myY + my * spd * dt;
           if (dashing && Math.random() < 0.7) this.burst(this.myX, this.myY, '#7bdff2', 2, 60);
@@ -893,6 +895,29 @@
           if (hd < hz.r) { bt.hp -= 12 * dt; if (Math.random() < 0.15) this.burst(bt.x, bt.y, '#ff6b35', 2, 100); if (bt.hp <= 0) { bt.alive = false; bt.respawnAt = performance.now() + 3000; this.burst(bt.x, bt.y, '#ffd32a', 28, 300); this.onFeed('🌋 الحمم قضت على ' + bt.name); break; } }
         }
         if (!bt.alive) continue;
+        if (bt.boss5 && this.myAlive) {
+          this.icePools = this.icePools || [];
+          if (nowB >= bt.nextIce) {
+            bt.nextIce = nowB + 6000;
+            for (let m = 0; m < 3; m++) { const ia = Math.random() * 6.283, idd = m === 0 ? 0 : 100 + Math.random() * 200; this.icePools.push({ x: clamp(this.myX + Math.cos(ia) * idd, 90, WORLD - 90), y: clamp(this.myY + Math.sin(ia) * idd, 90, WORLD - 90), r: 95, until: nowB + 7000 }); }
+            this.onFeed('❄️ برك جليد! بتبطّأك');
+          }
+          if (!bt.chargeAt && !bt.chargeUntil && nowB >= bt.nextCharge) { bt.chargeAt = nowB + 1000; bt.cdx = Math.cos(bt.angle); bt.cdy = Math.sin(bt.angle); this.onFeed('⚠️ الجليد هيندفع! اطلع من الخط'); }
+          if (bt.chargeAt && nowB >= bt.chargeAt) { bt.chargeAt = 0; bt.chargeUntil = nowB + 650; bt.hitC = false; Sfx.boom(); }
+          if (bt.chargeUntil) {
+            if (nowB >= bt.chargeUntil) { bt.chargeUntil = 0; bt.nextCharge = nowB + 5000; }
+            else {
+              const cx2 = clamp(bt.x + bt.cdx * 760 * dt, PLAYER_R, WORLD - PLAYER_R), cy2 = clamp(bt.y + bt.cdy * 760 * dt, PLAYER_R, WORLD - PLAYER_R);
+              if (!this.obstacles.some((o) => circleRect(cx2, cy2, PLAYER_R, o))) { bt.x = cx2; bt.y = cy2; } else { bt.chargeUntil = nowB; }
+              if (Math.random() < 0.5) this.burst(bt.x, bt.y, '#7efff5', 2, 120);
+              if (!bt.hitC && Math.hypot(this.myX - bt.x, this.myY - bt.y) < PLAYER_R * 2 + 6) {
+                bt.hitC = true;
+                if (nowB < this.shieldUntil) this.onFeed('🛡️ الدرع صدّ الاندفاع!');
+                else { this.myHp -= 40; this.onHud(this.myHp); this.writeSelf(true); Sfx.hit(); this.shakeUntil = Math.max(this.shakeUntil, nowB + 300); if (this.myHp <= 0) { this.burst(this.myX, this.myY, '#7efff5', 30, 320); this.die('bot99'); } }
+              }
+            }
+          }
+        }
         if (bt.boss4 && nowB >= bt.nextMet && this.myAlive) {
           bt.nextMet = nowB + 3500;
           for (let m = 0; m < 3; m++) {
@@ -918,6 +943,7 @@
           this.rings.push({ x: bt.x, y: bt.y, age: 0, life: 0.5, R: 90 });
           this.burst(bt.x, bt.y, '#a55eea', 20, 320); Sfx.boom();
         }
+        if (bt.chargeUntil || bt.chargeAt) { mvx = 0; mvy = 0; }
         let nx = clamp(bt.x + mvx * lvl.spd * (bt.cls === 'tank' ? 0.6 : 1) * (this.mod === 'fast' ? 1.4 : 1) * dt, PLAYER_R, WORLD - PLAYER_R), ny = clamp(bt.y + mvy * lvl.spd * (bt.cls === 'tank' ? 0.6 : 1) * (this.mod === 'fast' ? 1.4 : 1) * dt, PLAYER_R, WORLD - PLAYER_R);
         for (const o of this.obstacles) {
           if (circleRect(nx, ny, PLAYER_R, o)) {
@@ -1314,6 +1340,14 @@
         ctx.font = '24px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff';
         ctx.fillText('\u{1F6E2}', br.x, br.y + 1);
       }
+      for (const ip of (this.icePools || [])) {
+        const nw = performance.now(); if (nw >= ip.until) continue;
+        ctx.save(); ctx.globalAlpha = Math.min(0.45, (ip.until - nw) / 1000 * 0.45); ctx.fillStyle = '#7efff5'; ctx.beginPath(); ctx.arc(ip.x, ip.y, ip.r, 0, 6.283); ctx.fill();
+        ctx.globalAlpha = 0.9; ctx.strokeStyle = '#d7fffb'; ctx.lineWidth = 3; ctx.setLineDash([10, 8]); ctx.stroke(); ctx.setLineDash([]); ctx.font = '30px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('❄️', ip.x, ip.y); ctx.restore();
+      }
+      for (const bt of this.bots) {
+        if (bt.boss5 && bt.alive && bt.chargeAt) { ctx.save(); ctx.globalAlpha = 0.35 + 0.3 * Math.sin(performance.now() / 50); ctx.strokeStyle = '#ff4757'; ctx.lineWidth = 46; ctx.beginPath(); ctx.moveTo(bt.x, bt.y); ctx.lineTo(bt.x + bt.cdx * 500, bt.y + bt.cdy * 500); ctx.stroke(); ctx.restore(); }
+      }
       for (const mt of this.meteors) {
         const k = Math.min(1, (performance.now() - mt.t0) / (mt.at - mt.t0)), pl = 0.6 + 0.4 * Math.sin(performance.now() / 70);
         ctx.save(); ctx.globalAlpha = 0.25 + 0.3 * pl; ctx.fillStyle = '#ff4757'; ctx.beginPath(); ctx.arc(mt.x, mt.y, mt.R, 0, 6.283); ctx.fill();
@@ -1422,10 +1456,10 @@
       for (const bt of this.bots) drawPlayer(bt.id, { name: bt.name, avatar: bt.boss ? '👹' : (bt.av || '🤖'), color: bt.color, x: bt.x, y: bt.y, alive: bt.alive, hp: Math.min(MAX_HP, bt.hp * MAX_HP / (bt.max || MAX_HP)), angle: bt.angle }, false);
       for (const bt of this.bots) {
         if (!bt.boss || !bt.alive) continue;
-        const bc = bt.boss4 ? '#ff6b35' : bt.boss3 ? '#18dcff' : bt.boss2 ? '#a55eea' : '#ff4757'; ctx.strokeStyle = bc; ctx.lineWidth = 5; ctx.shadowColor = bc; ctx.shadowBlur = 16;
+        const bc = bt.boss5 ? '#7efff5' : bt.boss4 ? '#ff6b35' : bt.boss3 ? '#18dcff' : bt.boss2 ? '#a55eea' : '#ff4757'; ctx.strokeStyle = bc; ctx.lineWidth = 5; ctx.shadowColor = bc; ctx.shadowBlur = 16;
         ctx.beginPath(); ctx.arc(bt.x, bt.y, PLAYER_R + 12, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0;
         ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(bt.x - 40, bt.y - PLAYER_R - 28, 80, 8);
-        ctx.fillStyle = bt.boss4 ? '#ff6b35' : bt.boss3 ? '#18dcff' : bt.boss2 ? '#a55eea' : '#ff4757'; ctx.fillRect(bt.x - 40, bt.y - PLAYER_R - 28, 80 * Math.max(0, bt.hp) / (bt.max || 300), 8);
+        ctx.fillStyle = bt.boss5 ? '#7efff5' : bt.boss4 ? '#ff6b35' : bt.boss3 ? '#18dcff' : bt.boss2 ? '#a55eea' : '#ff4757'; ctx.fillRect(bt.x - 40, bt.y - PLAYER_R - 28, 80 * Math.max(0, bt.hp) / (bt.max || 300), 8);
         ctx.font = '16px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#ffd32a'; ctx.fillText('\u{1F451}', bt.x, bt.y - PLAYER_R - 38);
       }
       for (const uid in this.players) drawPlayer(uid, this.players[uid], false);
