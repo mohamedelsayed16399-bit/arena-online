@@ -1103,7 +1103,7 @@
       const wl = this.weaponUntil - performance.now();
       if (this.myAlive && wl > 0) {
         ctx.font = 'bold 14px Cairo, sans-serif'; ctx.fillStyle = this.weapon === 'rapid' ? '#a55eea' : this.weapon === 'shotgun' ? '#ff6348' : '#fd79a8';
-        ctx.fillText((this.weapon === 'rapid' ? '🔫 رشاش ' : this.weapon === 'shotgun' ? '💥 شوتجن ' : '🔱 ثلاثي ') + Math.ceil(wl / 1000) + 'ث', innerWidth / 2, innerHeight - 100);
+        ctx.fillText((this.weapon === 'rapid' ? '🔫 رشاش ' : this.weapon === 'shotgun' ? '💥 شوتجن ' : '🔱 ثلاثي ') + Math.ceil(wl / 1000) + 'ث', innerWidth / 2, innerHeight - 170);
       }
       if (!this.myAlive && this.specName) {
         ctx.font = 'bold 16px Cairo, sans-serif'; ctx.fillStyle = '#fff';
