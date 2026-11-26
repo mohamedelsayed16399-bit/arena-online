@@ -303,7 +303,7 @@
         angle: Math.round(this.myAngle * 100) / 100,
         hp: this.myHp, alive: this.myAlive,
         sh: performance.now() < this.shieldUntil ? 1 : 0,
-        zpts: this.zpts || 0,
+        zpts: this.zpts || 0, hb: firebase.database.ServerValue.TIMESTAMP,
         name: this.me.name, avatar: this.me.avatar, color: this.me.color,
       }).catch(() => {});
     },
@@ -845,7 +845,7 @@
       // العلم: امسكه وانت عايش، كل ثانية = نقطة. لو اتقتلت بيقع مكانك
       if (this.mode === 'flag' && this.flag) {
         const f = this.flag, fnow = performance.now();
-        const hp0 = f.holder && f.holder !== this.me.uid ? this.players[f.holder] : null; const stale = f.holder && f.holder !== this.me.uid && (!hp0 || (typeof hp0.ts === 'number' && this.serverNow() - hp0.ts > 6000));
+        const hp0 = f.holder && f.holder !== this.me.uid ? this.players[f.holder] : null; const stale = f.holder && f.holder !== this.me.uid && (!hp0 || (typeof hp0.hb === 'number' && this.serverNow() - hp0.hb > 6000));
         if (this.myAlive && fnow >= this.flagBlock && (!f.holder || stale) && !this.flagTry && Math.hypot(this.myX - f.x, this.myY - f.y) < 42) {
           this.flagTry = true; const staleId = f.holder || '';
           this.db.ref('rooms/' + this.roomCode + '/flag').transaction((cur) => (cur && (!cur.holder || cur.holder === staleId)) ? { holder: this.me.uid, x: cur.x, y: cur.y } : undefined).then((r) => {
