@@ -101,8 +101,13 @@
     genObstacles() {
       const rnd = mulberry32(this.seed);
       this.obstacles = [];
-      for (let i = 0; i < 16; i++) {
-        const w = 90 + rnd() * 220, h = 90 + rnd() * 220;
+      const count = 12 + Math.floor(rnd() * 9); // ١٢-٢٠ حاجز
+      for (let i = 0; i < count; i++) {
+        let w, h;
+        const kind = rnd();
+        if (kind < 0.35) { w = 200 + rnd() * 260; h = 40 + rnd() * 60; }       // حيطة عريضة
+        else if (kind < 0.7) { w = 40 + rnd() * 60; h = 200 + rnd() * 260; }   // حيطة طولية
+        else { w = 90 + rnd() * 160; h = 90 + rnd() * 160; }                   // مكعب
         this.obstacles.push({
           x: 120 + rnd() * (WORLD - 240 - w),
           y: 120 + rnd() * (WORLD - 240 - h),
@@ -474,6 +479,7 @@
       document.getElementById('hud-kills').textContent = this.kills || 0;
       document.getElementById('hud-deaths').textContent = this.deaths || 0;
       document.getElementById('hud-hp-fill').style.width = Math.max(0, this.myHp) + '%';
+      document.getElementById('hud-hp').classList.toggle('low', this.myAlive && this.myHp < 30);
       // وميض الإصابة لما دمّي يقل
       if (this.lastHpShown !== null && this.myHp < this.lastHpShown) this.hitFlashUntil = performance.now() + 220;
       this.lastHpShown = this.myHp;
