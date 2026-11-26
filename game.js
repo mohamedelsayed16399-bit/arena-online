@@ -217,6 +217,15 @@
       const onGem = gemRef.on('child_added', (s) => { this.gemTaken[s.key] = true; });
       this.listeners.push({ ref: gemRef, ev: 'child_added', fn: onGem });
 
+      // العلم (وضع الاستحواذ على العلم)
+      this.flag = null; this.flagBlock = 0; this.flagAcc = 0; this.flagTry = false;
+      if (this.mode === 'flag') {
+        const flagRef = roomRef.child('flag');
+        const onFlag = flagRef.on('value', (s) => { this.flag = s.val(); });
+        this.listeners.push({ ref: flagRef, ev: 'value', fn: onFlag });
+        if (this.host) { const fp = this.freeSpot(mulberry32(((this.seed * 7 + 99) >>> 0))); flagRef.set({ holder: '', x: Math.round(fp.x), y: Math.round(fp.y) }).catch(() => {}); }
+      }
+
       // علب الصحة
       const pickRef = roomRef.child('pickups');
       const onPickAdd = pickRef.on('child_added', (s) => { const v = s.val(); if (v) this.pickups[s.key] = v; });
@@ -577,6 +586,10 @@
       this.myHp = 0;
       this.deaths = (this.deaths || 0) + 1;
       this.respawnAt = performance.now() + RESPAWN_SEC * 1000;
+      if (this.mode === 'flag' && this.flag && this.flag.holder === this.me.uid) {
+        const dr = { holder: '', x: Math.round(this.myX), y: Math.round(this.myY) }; this.flag = dr; this.flagBlock = performance.now() + 2500;
+        this.db.ref('rooms/' + this.roomCode + '/flag').set(dr).catch(() => {}); this.onFeed('🚩 وقع منك العلم!');
+      }
       try {
         let kn = '';
         if (killerUid === 'storm') kn = '🌪️ العاصفة'; else if (killerUid === 'hole') kn = '🕳️ الثقب الأسود'; else if (killerUid === 'lava') kn = '🌋 الحمم';
@@ -760,7 +773,7 @@
           if (len > 1) { mx /= len; my /= len; }
           const inIce = (this.icePools || []).some((ip) => performance.now() < ip.until && Math.hypot(this.myX - ip.x, this.myY - ip.y) < ip.r);
           const spd0 = dashing ? SPEED * 4.2 : performance.now() < this.speedUntil ? SPEED * 1.4 * (1 + 0.1 * this.up.spd) : SPEED * (1 + 0.1 * this.up.spd);
-          const spd = inIce && !dashing ? spd0 * 0.45 : spd0;
+          const spd = (inIce && !dashing ? spd0 * 0.45 : spd0) * (this.mode === 'flag' && this.flag && this.flag.holder === this.me.uid ? 0.88 : 1);
           let nx = this.myX + mx * spd * dt;
           let ny = this.myY + my * spd * dt;
           if (dashing && Math.random() < 0.7) this.burst(this.myX, this.myY, '#7bdff2', 2, 60);
@@ -827,6 +840,23 @@
             if (this.myHp <= 0) { this.burst(this.myX, this.myY, '#ffd32a', 30, 320); this.die('storm'); }
           }
         } else if (!this.inStorm) { this.wasStorm = false; }
+      }
+
+      // العلم: امسكه وانت عايش، كل ثانية = نقطة. لو اتقتلت بيقع مكانك
+      if (this.mode === 'flag' && this.flag) {
+        const f = this.flag, fnow = performance.now();
+        const stale = f.holder && f.holder !== this.me.uid && !this.players[f.holder];
+        if (this.myAlive && fnow >= this.flagBlock && (!f.holder || stale) && !this.flagTry && Math.hypot(this.myX - f.x, this.myY - f.y) < 42) {
+          this.flagTry = true; const staleId = f.holder || '';
+          this.db.ref('rooms/' + this.roomCode + '/flag').transaction((cur) => (cur && (!cur.holder || cur.holder === staleId)) ? { holder: this.me.uid, x: cur.x, y: cur.y } : undefined).then((r) => {
+            this.flagTry = false;
+            if (r && r.committed) { this.onFeed('🚩 معاك العلم! كل ثانية نقطة — حد يقتلك ياخده'); this.burst(this.myX, this.myY, '#ff4757', 18, 260); if (Sfx.pick) Sfx.pick(); }
+          }).catch(() => { this.flagTry = false; });
+        }
+        if (f.holder === this.me.uid && this.myAlive) {
+          this.flagAcc += dt;
+          if (this.flagAcc >= 1) { this.flagAcc -= 1; this.zpts = (this.zpts || 0) + 1; this.writeSelf(true); }
+        }
       }
 
       // صيد الجواهر
@@ -1220,7 +1250,7 @@
       }
       // أضفني أنا
       rows.push({ uid: this.me.uid, name: this.me.name, avatar: this.me.avatar, kills: this.kills || 0, deaths: this.deaths || 0, zpts: this.zpts || 0 });
-      if (this.mode === 'zone' || this.mode === 'gems') rows.sort((a, b) => b.zpts - a.zpts || b.kills - a.kills);
+      if (this.mode === 'zone' || this.mode === 'gems' || this.mode === 'flag') rows.sort((a, b) => b.zpts - a.zpts || b.kills - a.kills);
       else rows.sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
       return rows;
     },
@@ -1303,6 +1333,13 @@
         ctx.stroke();
       }
 
+      if (this.mode === 'flag' && this.flag) {
+        const f = this.flag, hp2 = f.holder === this.me.uid ? { x: this.myX, y: this.myY } : (f.holder && this.players[f.holder] && typeof this.players[f.holder].x === 'number' ? this.players[f.holder] : null);
+        const fx = hp2 ? hp2.x : f.x, fy = (hp2 ? hp2.y - 34 : f.y) + Math.sin(performance.now() / 300) * 3;
+        ctx.save(); ctx.shadowColor = '#ff4757'; ctx.shadowBlur = 26; ctx.strokeStyle = 'rgba(255,71,87,0.7)'; ctx.lineWidth = 3;
+        if (!hp2) { ctx.beginPath(); ctx.arc(f.x, f.y, 42 + Math.sin(performance.now() / 200) * 4, 0, 6.283); ctx.stroke(); }
+        ctx.font = '38px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🚩', fx, fy); ctx.restore();
+      }
       if (this.mode === 'gems') {
         const tt = performance.now() / 400;
         for (const gm of this.gemList()) {
@@ -1595,6 +1632,7 @@
       for (const h of (this.hazards || [])) { c.fillStyle = h.type === 'hole' ? 'rgba(160,90,255,0.7)' : h.type === 'lava' ? 'rgba(255,90,30,0.65)' : 'rgba(160,225,255,0.4)'; c.beginPath(); c.arc(h.x * sc, h.y * sc, h.r * sc, 0, Math.PI * 2); c.fill(); }
       const sm = this.stormInfo();
       if (sm) { c.strokeStyle = '#ff4757'; c.lineWidth = 2; c.beginPath(); c.arc(sm.x * sc, sm.y * sc, sm.r * sc, 0, Math.PI * 2); c.stroke(); }
+      if (this.mode === 'flag' && this.flag) { const f = this.flag, hq = f.holder === this.me.uid ? { x: this.myX, y: this.myY } : (f.holder && this.players[f.holder] && typeof this.players[f.holder].x === 'number' ? this.players[f.holder] : f); c.fillStyle = '#ff4757'; c.fillRect(hq.x * sc - 4, hq.y * sc - 4, 8, 8); }
       if (this.mode === 'gems') { c.fillStyle = '#18dcff'; for (const gm of this.gemList()) { if (!this.gemTaken[gm.key]) { c.fillRect(gm.x * sc - 1.5, gm.y * sc - 1.5, 3, 3); } } }
       const zm = this.zoneInfo();
       if (zm) { c.strokeStyle = '#ffd32a'; c.lineWidth = 2; c.beginPath(); c.arc(zm.x * sc, zm.y * sc, zm.r * sc, 0, Math.PI * 2); c.stroke(); }
