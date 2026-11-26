@@ -634,7 +634,7 @@
   // ============ المتصدرين ============
   const ACH_LIST = [
     ['kill1', '🎯 أول قتلة'], ['kill10', '🔟 ١٠ قتلات'], ['streak3', '🔥 سلسلة ٣ قتلات'],
-    ['dash10', '💨 عدّاء (١٠ داشات)'], ['zone30', '🏁 سيد المنطقة (٣٠ نقطة)'], ['win1', '🏆 أول فوز'], ['pickup5', '🎁 جامع القدرات (٥)'], ['gren3', '💣 قنّاص (٣ قنابل)'],
+    ['dash10', '💨 عدّاء (١٠ داشات)'], ['zone30', '🏁 سيد المنطقة (٣٠ نقطة)'], ['win1', '🏆 أول فوز'], ['pickup5', '🎁 جامع القدرات (٥)'], ['gren3', '💣 قنّاص (٣ قنابل)'], ['wave3', '🌊 صامد (الموجة ٣)'],
   ];
   window.ArenaAch = {
     load() { try { return JSON.parse(localStorage.getItem('arena_ach') || '{}'); } catch (e) { return {}; } },
@@ -652,6 +652,7 @@
       else if (type === 'streak') { if (val >= 3) this.unlock(d, 'streak3'); }
       else if (type === 'dash') { d.c.dashes = (d.c.dashes || 0) + 1; if (d.c.dashes >= 10) this.unlock(d, 'dash10'); }
       else if (type === 'gren') { d.c.grens = (d.c.grens || 0) + 1; if (d.c.grens >= 3) this.unlock(d, 'gren3'); }
+      else if (type === 'wave') { if (val >= 3) this.unlock(d, 'wave3'); }
       else if (type === 'zone') { if (val >= 30) this.unlock(d, 'zone30'); }
       else if (type === 'win') { this.unlock(d, 'win1'); }
       else if (type === 'pickup') { d.c.pickups = (d.c.pickups || 0) + 1; if (d.c.pickups >= 5) this.unlock(d, 'pickup5'); }
@@ -685,6 +686,7 @@
           <div><span>🎯</span><b>${kd.toFixed(2)}</b><small>نسبة ق/م</small></div>
           <div><span>⭐</span><b>${me.points}</b><small>نقاط</small></div>
           <div><span>🏅</span><b>${i >= 0 ? '#' + (i + 1) : '-'}</b><small>ترتيبك من ${rows.length}</small></div>
+          <div><span>🌊</span><b>${(function () { try { return localStorage.getItem('arena_bestwave') || 0; } catch (e) { return 0; } })()}</b><small>أفضل موجة</small></div>
         </div>` + (i < 0 ? '<p class="subtitle">العب جولة مع لاعب تاني عشان تظهر في الترتيب</p>' : '');
     }, () => { c.innerHTML = '<p class="subtitle">مقدرتش أجيب البيانات</p>'; });
   }
