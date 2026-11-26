@@ -106,6 +106,16 @@
     $('btn-leaderboard').onclick = () => { showLeaderboard('wins'); };
     $('btn-rooms').onclick = showRooms;
     $('btn-stats').onclick = showStats;
+    const diffNames = { easy: 'سهل', normal: 'عادي', hard: 'صعب' };
+    const diffOrder = ['easy', 'normal', 'hard'];
+    const curDiff = () => { try { return localStorage.getItem('arena_bot_diff') || 'normal'; } catch (e) { return 'normal'; } };
+    const paintDiff = () => { $('btn-botdiff').textContent = '🤖 صعوبة البوتات: ' + diffNames[curDiff()]; };
+    $('btn-botdiff').onclick = () => {
+      const n = diffOrder[(diffOrder.indexOf(curDiff()) + 1) % 3];
+      try { localStorage.setItem('arena_bot_diff', n); } catch (e) { /* ignore */ }
+      paintDiff(); toast('صعوبة البوتات: ' + diffNames[n]);
+    };
+    paintDiff();
     $('btn-back-from-stats').onclick = () => show('home');
     $('btn-rooms-refresh').onclick = showRooms;
     $('btn-back-from-rooms').onclick = () => show('home');
