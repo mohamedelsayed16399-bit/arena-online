@@ -377,6 +377,12 @@
       joinedAt: firebase.database.ServerValue.TIMESTAMP,
     });
     pRef.onDisconnect().remove();
+    db.ref('.info/connected').on('value', (cs) => {
+      if (cs.val() === true && roomCode === code) {
+        pRef.onDisconnect().remove();
+        pRef.child('name').once('value').then((ns) => { if (ns.val() === null) pRef.update({ name: profile.name, avatar: profile.avatar, color: myColor }); }).catch(() => {});
+      }
+    });
     openLobby(code);
   }
 
