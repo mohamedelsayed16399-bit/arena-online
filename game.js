@@ -371,8 +371,8 @@
       for (let k = 0; k < 6; k++) { const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 131 + 7)); this.barrels.push({ x: p.x, y: p.y, hp: 2, dead: false }); }
       if (this.wave % 5 === 0) {
         const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + 999));
-        this.bots.push({ id: 'bot99', name: '👑 الزعيم', boss: true, x: p.x, y: p.y, hp: 300, alive: true, angle: 0, lastFire: nowB + 1500, respawnAt: 0, phase: 0, color: 1 });
-        this.onFeed('👑 زعيم ظهر! ٣٠٠ صحة وبيضرب ٣ طلقات'); Sfx.horn();
+        this.bots.push({ id: 'bot99', name: this.wave >= 10 ? '💀 زعيم الانفجار' : '👑 الزعيم', boss: true, boss2: this.wave >= 10, max: this.wave >= 10 ? 450 : 300, nextBurst: nowB + 3500, x: p.x, y: p.y, hp: this.wave >= 10 ? 450 : 300, alive: true, angle: 0, lastFire: nowB + 1500, respawnAt: 0, phase: 0, color: 1 });
+        this.onFeed(this.wave >= 10 ? '💀 زعيم الانفجار! ٤٥٠ صحة وبيطلق دايرة طلقات كل ٤ ثواني' : '👑 زعيم ظهر! ٣٠٠ صحة وبيضرب ٣ طلقات'); Sfx.horn();
       }
       for (let k = 0; k < n; k++) {
         const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 77));
@@ -755,6 +755,12 @@
           if (hd < hz.r) { bt.hp -= 12 * dt; if (Math.random() < 0.15) this.burst(bt.x, bt.y, '#ff6b35', 2, 100); if (bt.hp <= 0) { bt.alive = false; bt.respawnAt = performance.now() + 3000; this.burst(bt.x, bt.y, '#ffd32a', 28, 300); this.onFeed('🌋 الحمم قضت على ' + bt.name); break; } }
         }
         if (!bt.alive) continue;
+        if (bt.boss2 && nowB >= bt.nextBurst && this.myAlive) {
+          bt.nextBurst = nowB + 4000;
+          for (let q = 0; q < 14; q++) { const a3 = (q / 14) * Math.PI * 2 + nowB / 1000; this.bullets.push({ id: bt.id + '_r' + Math.floor(nowB) + '_' + q, uid: bt.id, x: bt.x + Math.cos(a3) * 30, y: bt.y + Math.sin(a3) * 30, dx: Math.cos(a3), dy: Math.sin(a3), age: 0, life: 1.4 }); }
+          this.rings.push({ x: bt.x, y: bt.y, age: 0, life: 0.5, R: 90 });
+          this.burst(bt.x, bt.y, '#a55eea', 20, 320); Sfx.boom();
+        }
         let nx = clamp(bt.x + mvx * lvl.spd * dt, PLAYER_R, WORLD - PLAYER_R), ny = clamp(bt.y + mvy * lvl.spd * dt, PLAYER_R, WORLD - PLAYER_R);
         for (const o of this.obstacles) {
           if (circleRect(nx, ny, PLAYER_R, o)) {
@@ -1177,10 +1183,10 @@
       for (const bt of this.bots) drawPlayer(bt.id, { name: bt.name, avatar: bt.boss ? '👹' : '🤖', color: bt.color, x: bt.x, y: bt.y, alive: bt.alive, hp: Math.min(bt.hp, MAX_HP), angle: bt.angle }, false);
       for (const bt of this.bots) {
         if (!bt.boss || !bt.alive) continue;
-        ctx.strokeStyle = '#ff4757'; ctx.lineWidth = 5; ctx.shadowColor = '#ff4757'; ctx.shadowBlur = 16;
+        const bc = bt.boss2 ? '#a55eea' : '#ff4757'; ctx.strokeStyle = bc; ctx.lineWidth = 5; ctx.shadowColor = bc; ctx.shadowBlur = 16;
         ctx.beginPath(); ctx.arc(bt.x, bt.y, PLAYER_R + 12, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0;
         ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(bt.x - 40, bt.y - PLAYER_R - 28, 80, 8);
-        ctx.fillStyle = '#ff4757'; ctx.fillRect(bt.x - 40, bt.y - PLAYER_R - 28, 80 * Math.max(0, bt.hp) / 300, 8);
+        ctx.fillStyle = bt.boss2 ? '#a55eea' : '#ff4757'; ctx.fillRect(bt.x - 40, bt.y - PLAYER_R - 28, 80 * Math.max(0, bt.hp) / (bt.max || 300), 8);
         ctx.font = '16px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#ffd32a'; ctx.fillText('\u{1F451}', bt.x, bt.y - PLAYER_R - 38);
       }
       for (const uid in this.players) drawPlayer(uid, this.players[uid], false);
