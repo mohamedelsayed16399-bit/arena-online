@@ -7,7 +7,7 @@
 <title>ساحة الأبطال | لعبة أونلاين جماعية</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=21">
+<link rel="stylesheet" href="style.css?v=22">
 </head>
 <body>
 <div id="app">
@@ -116,7 +116,9 @@
     <div id="respawn-overlay" class="hidden">
       <p>💀 مت!</p>
       <p id="respawn-count">3</p>
+      <p id="respawn-by" class="respawn-by"></p>
     </div>
+    <div id="tutorial" class="hidden"><div class="tut-card"><h3>🎓 إزاي تلعب</h3><ul id="tut-list"></ul><button id="btn-tut-ok" class="btn btn-primary">فهمت ✅ يلا نلعب</button></div></div>
     <div id="joystick-left" class="joystick"><div class="joystick-knob"></div></div>
     <div id="joystick-right" class="joystick"><div class="joystick-knob"></div></div>
     <button id="btn-leave-game" class="btn-mini leave-game">خروج</button>
@@ -210,7 +212,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="firebase-config.js?v=8"></script>
-<script src="game.js?v=49"></script>
-<script src="app.js?v=28"></script>
+<script src="game.js?v=50"></script>
+<script src="app.js?v=29"></script>
 </body>
 </html>
