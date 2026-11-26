@@ -463,6 +463,7 @@
       if (this.bossRush || this.wave % 5 === 0) {
         const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + 999));
         this.bots.push({ id: 'bot99', name: wv >= 45 ? '🕷️ ملكة الأسراب' : wv >= 40 ? '👹 سيد الساحة' : wv >= 35 ? '⚡ زعيم البرق' : wv >= 30 ? '🐉 زعيم الهيدرا' : wv >= 25 ? '❄️ زعيم الجليد' : wv >= 20 ? '☄️ زعيم النيازك' : wv >= 15 ? '🌀 زعيم الشبح' : wv >= 10 ? '💀 زعيم الانفجار' : '👑 الزعيم', boss: true, boss2: wv >= 10 && wv < 15, boss3: wv >= 15 && wv < 20, boss4: wv >= 20 && wv < 25, boss5: wv >= 25 && wv < 30, boss6: wv >= 30 && wv < 35, boss7: wv >= 35 && wv < 40, boss8: wv >= 40 && wv < 45, boss9: wv >= 45, nextStrike: nowB + 3000, nextSpiral: nowB + 2500, nextIce: nowB + 3000, nextCharge: nowB + 5000, chargeAt: 0, chargeUntil: 0, nextMet: nowB + 3000, nextTp: nowB + 4500, max: wv >= 45 ? 2600 : wv >= 40 ? 2000 : wv >= 35 ? 1200 : wv >= 30 ? 700 : wv >= 25 ? 1000 : wv >= 20 ? 800 : wv >= 15 ? 600 : wv >= 10 ? 450 : 300, nextBurst: nowB + 3500, x: p.x, y: p.y, hp: wv >= 45 ? 2600 : wv >= 40 ? 2000 : wv >= 35 ? 1200 : wv >= 30 ? 700 : wv >= 25 ? 1000 : wv >= 20 ? 800 : wv >= 15 ? 600 : wv >= 10 ? 450 : 300, alive: true, angle: 0, lastFire: nowB + 1500, respawnAt: 0, phase: 0, color: 1 });
+        if (!this.bossRush && this.wave > 45) { const bb0 = this.bots[this.bots.length - 1]; bb0.hp = Math.round(bb0.hp * (1 + 0.15 * Math.floor((this.wave - 45) / 5))); bb0.max = bb0.hp; this.onFeed('♾️ مرحلة اللانهاية: الزعماء بقوا أقوى ' + Math.round(15 * Math.floor((this.wave - 45) / 5)) + '٪'); }
         if (sc > 1) { const bb = this.bots[this.bots.length - 1]; bb.hp = Math.round(bb.hp * sc); bb.max = bb.hp; }
         this.onFeed(wv >= 45 ? '🕷️ ملكة الأسراب! بتتنقل وبتستدعي أتباع ودوامات — اقتل الأتباع الأول' : wv >= 40 ? '👹 سيد الساحة! بيجمع دوامات الهيدرا وصواعق البرق — ٢٠٠٠ صحة' : wv >= 35 ? '⚡ زعيم البرق! بيعلّم أماكن وبعدين الصاعقة بتضرب — اتحرك أول ما تشوف الدايرة!' : wv >= 30 ? '🐉 زعيم الهيدرا! لما يموت بيتحول لراسين — خلّص عليهم' : wv >= 25 ? '❄️ زعيم الجليد! برك تجمّد وهجوم اندفاعي — ابعد عن الخط الأحمر!' : wv >= 20 ? '☄️ زعيم النيازك! بيمطر نيازك — اتحرك!' : wv >= 15 ? '🌀 زعيم الشبح! بيتنقل وبيستدعي أتباع' : wv >= 10 ? '💀 زعيم الانفجار! دايرة طلقات' : '👑 زعيم ظهر! ٣٠٠ صحة وبيضرب ٣ طلقات'); Sfx.horn();
       }
@@ -1017,7 +1018,7 @@
           this.rings.push({ x: bt.x, y: bt.y, age: 0, life: 0.5, R: 80 }); this.burst(bt.x, bt.y, '#18dcff', 18, 260); Sfx.boom();
           if (this.bots.filter((q) => q.alive).length < 12) {
             for (let m = 0; m < 2; m++) { const sp = this.freeSpot(mulberry32((Date.now() & 0xffff) + m * 51)); this.bots.push({ id: 'botm' + Math.floor(nowB) + m, name: '👻 تابع', x: sp.x, y: sp.y, hp: 50, alive: true, angle: 0, lastFire: nowB + 1500, respawnAt: 0, phase: Math.random() * 6, color: 6 }); }
-            this.onFeed('🌀 الشبح استدعى تابعين!');
+            this.onFeed(bt.boss9 ? '🕷️ الملكة استدعت تابعين!' : '🌀 الشبح استدعى تابعين!');
           }
         }
         if (bt.boss2 && nowB >= bt.nextBurst && this.myAlive) {
