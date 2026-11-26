@@ -155,7 +155,7 @@
       m.list.forEach((x, i) => {
         const def = MPOOL.find((q) => q.id === x.id); const done = x.prog >= def.g;
         const row = document.createElement('div'); row.className = 'shop-row mission-row';
-        row.innerHTML = '<div style="flex:1"><b>' + def.t.replace('{n}', def.g) + '</b><div class="m-bar"><i style="width:' + Math.min(100, 100 * x.prog / def.g) + '%"></i></div><small>' + Math.min(x.prog, def.g) + ' / ' + def.g + '</small></div>';
+        row.innerHTML = '<div style="flex:1"><b>' + def.t.replace('{n}', def.g) + '</b><div class="m-bar"><i style="width:' + Math.min(100, 100 * x.prog / def.g) + '%"></i></div><small dir="ltr">' + Math.min(x.prog, def.g) + ' / ' + def.g + '</small></div>';
         const bt = document.createElement('button'); bt.className = 'btn btn-ghost shop-btn';
         if (x.claimed) { bt.textContent = '✅ اتسلّمت'; bt.disabled = true; }
         else if (done) { bt.textContent = '🎁 استلم 🪙' + def.r; bt.onclick = () => { x.claimed = true; localStorage.setItem('arena_missions', JSON.stringify(m)); localStorage.setItem('arena_coins', String(coinsNow() + def.r)); toast('+' + def.r + ' عملة'); updShopBtn(); renderMissions(); }; }
@@ -163,6 +163,10 @@
         row.appendChild(bt); box.appendChild(row);
       });
     }
+    $('btn-bossrush').onclick = () => {
+      window.ARENA_BR = true; createRoom();
+      let tries = 0; const iv = setInterval(() => { tries++; const b = $('btn-start'); if (b && b.offsetParent) { clearInterval(iv); setTimeout(() => b.click(), 600); } else if (tries > 40) { clearInterval(iv); window.ARENA_BR = false; } }, 300);
+    };
     $('btn-missions').onclick = () => { renderMissions(); show('missions'); };
     $('btn-back-from-missions').onclick = () => show('home');
     $('btn-shop').onclick = () => { renderShop(); show('shop'); };
