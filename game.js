@@ -128,6 +128,35 @@
           w, h,
         });
       }
+      const r2 = mulberry32((this.seed * 13 + 777) >>> 0);
+      for (let i = 0; i < 4; i++) {
+        const horiz = i % 2 === 0;
+        const w = horiz ? 40 : 220, h = horiz ? 220 : 40;
+        const cx = 500 + r2() * (WORLD - 1000), cy = 500 + r2() * (WORLD - 1000);
+        this.obstacles.push({ x: cx, y: cy, w, h, mv: { cx, cy, ax: horiz ? 1 : 0, ay: horiz ? 0 : 1, amp: 220 + r2() * 160, sp: 0.5 + r2() * 0.5, ph: r2() * 6.28 } });
+      }
+      this.updateMovers(true);
+    },
+
+    updateMovers(first) {
+      const t = this.serverNow() / 1000;
+      for (const o of this.obstacles) {
+        if (!o.mv) continue;
+        const m = o.mv, off = Math.sin(t * m.sp + m.ph) * m.amp;
+        const px = o.x, py = o.y;
+        o.x = m.cx + m.ax * off; o.y = m.cy + m.ay * off;
+        if (first) continue;
+        const ddx = o.x - px, ddy = o.y - py;
+        const push = (ent, r) => {
+          if (!circleRect(ent.x, ent.y, r, o)) return;
+          const nx = clamp(ent.x, o.x, o.x + o.w), ny = clamp(ent.y, o.y, o.y + o.h);
+          let vx = ent.x - nx, vy = ent.y - ny, d = Math.hypot(vx, vy);
+          if (d < 0.001) { vx = ddx || 1; vy = ddy; d = Math.hypot(vx, vy) || 1; }
+          ent.x = clamp(nx + (vx / d) * (r + 1), r, WORLD - r); ent.y = clamp(ny + (vy / d) * (r + 1), r, WORLD - r);
+        };
+        if (this.myAlive) { const me = { x: this.myX, y: this.myY }; push(me, PLAYER_R); this.myX = me.x; this.myY = me.y; }
+        for (const bt of this.bots) if (bt.alive) push(bt, PLAYER_R);
+      }
     },
 
     buildHazards() {
@@ -634,6 +663,8 @@
         }
       }
 
+      this.updateMovers();
+
       // الطلقات
       const db2 = document.getElementById('btn-dash');
       if (db2) {
@@ -983,10 +1014,11 @@
 
       // الحواجز
       for (const o of this.obstacles) {
-        ctx.fillStyle = this.theme.ob;
+        ctx.fillStyle = o.mv ? '#7d3c98' : this.theme.ob;
         roundRect(ctx, o.x, o.y, o.w, o.h, 10);
         ctx.fill();
-        ctx.strokeStyle = this.theme.obs;
+        if (o.mv) { ctx.fillStyle = 'rgba(255,211,42,0.55)'; const stripes = Math.floor((o.w > o.h ? o.w : o.h) / 30); for (let s = 0; s < stripes; s++) { if (o.w > o.h) ctx.fillRect(o.x + 8 + s * 30, o.y + 6, 12, o.h - 12); else ctx.fillRect(o.x + 6, o.y + 8 + s * 30, o.w - 12, 12); } }
+        ctx.strokeStyle = o.mv ? '#ffd32a' : this.theme.obs;
         ctx.lineWidth = 2;
         ctx.stroke();
       }
