@@ -13,6 +13,12 @@
   const RESPAWN_SEC = 3;
   const NET_HZ = 90;              // كل كام مللي ثانية نبعت الموقع
 
+  const THEMES = [
+    { name: 'ليل', bg0: '#101426', bg1: '#0b0e1a', ob: '#222a52', obs: 'rgba(255,255,255,0.08)' },
+    { name: 'صحرا', bg0: '#2a1f12', bg1: '#1a1209', ob: '#5a4326', obs: 'rgba(255,214,150,0.18)' },
+    { name: 'تلج', bg0: '#0f2430', bg1: '#08141c', ob: '#2c5a73', obs: 'rgba(180,235,255,0.22)' },
+  ];
+  const BOT_LEVELS = { easy: { fire: 1600, err: 0.9, spd: 110 }, normal: { fire: 950, err: 0.45, spd: 150 }, hard: { fire: 600, err: 0.18, spd: 190 } };
   const PALETTE = ['#ff4757', '#2ed573', '#1e90ff', '#ffa502', '#eccc68', '#7bed9f', '#70a1ff', '#ff6b81'];
 
   function mulberry32(a) {
@@ -54,7 +60,7 @@
       this.me = opts.me; this.host = opts.host;
       this.seed = opts.seed || 1;
       this.endsAt = opts.endsAt || 0;
-      this.mode = opts.mode || 'classic'; this.zpts = 0; this.zoneAcc = 0; this.zoneCache = null;
+      this.theme = THEMES[Math.abs(Math.floor(this.seed)) % THEMES.length]; this.mode = opts.mode || 'classic'; this.zpts = 0; this.zoneAcc = 0; this.zoneCache = null;
       this.onRoundEnd = opts.onRoundEnd; this.onFeed = opts.onFeed || (() => {}); this.onHud = opts.onHud || (() => {});
       this.canvas = document.getElementById('game-canvas');
       this.ctx = this.canvas.getContext('2d');
@@ -74,6 +80,7 @@
       this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.specIdx = 0;
       this.protectedUntil = performance.now() + 2000; // حماية بداية الجولة
       this.writeSelf(true);
+      this.onFeed('🗺️ ساحة ' + this.theme.name);
       this.lastTs = performance.now();
       const loop = (ts) => {
         if (!this.running) return;
@@ -492,6 +499,8 @@
           this.onFeed('👥 لاعب حقيقي دخل: البوتات خرجت');
         }
       }
+      let lvl = BOT_LEVELS.normal;
+      try { lvl = BOT_LEVELS[localStorage.getItem('arena_bot_diff')] || BOT_LEVELS.normal; } catch (err) { /* ignore */ }
       for (const bt of this.bots) {
         if (!bt.alive) {
           if (nowB >= bt.respawnAt) { const p = this.freeSpot(mulberry32(Date.now() & 0xffff)); bt.x = p.x; bt.y = p.y; bt.hp = MAX_HP; bt.alive = true; bt.lastFire = nowB + 1000; }
@@ -504,7 +513,7 @@
         if (dist > 380) { mvx = tx; mvy = ty; }
         else if (dist < 220) { mvx = -tx; mvy = -ty; }
         else { const s = Math.sin(nowB / 900 + bt.phase) > 0 ? 1 : -1; mvx = -ty * s; mvy = tx * s; }
-        let nx = clamp(bt.x + mvx * 150 * dt, PLAYER_R, WORLD - PLAYER_R), ny = clamp(bt.y + mvy * 150 * dt, PLAYER_R, WORLD - PLAYER_R);
+        let nx = clamp(bt.x + mvx * lvl.spd * dt, PLAYER_R, WORLD - PLAYER_R), ny = clamp(bt.y + mvy * lvl.spd * dt, PLAYER_R, WORLD - PLAYER_R);
         for (const o of this.obstacles) {
           if (circleRect(nx, ny, PLAYER_R, o)) {
             if (!circleRect(nx, bt.y, PLAYER_R, o)) ny = bt.y;
@@ -513,9 +522,9 @@
           }
         }
         bt.x = nx; bt.y = ny;
-        if (this.myAlive && dist < 650 && nowB - bt.lastFire > 950) {
+        if (this.myAlive && dist < 650 && nowB - bt.lastFire > lvl.fire) {
           bt.lastFire = nowB + Math.random() * 500;
-          const a = bt.angle + (Math.random() - 0.5) * 0.45;
+          const a = bt.angle + (Math.random() - 0.5) * lvl.err;
           this.bullets.push({ id: bt.id + '_' + Math.floor(nowB), uid: bt.id, x: bt.x + Math.cos(a) * (PLAYER_R + 6), y: bt.y + Math.sin(a) * (PLAYER_R + 6), dx: Math.cos(a), dy: Math.sin(a), age: 0 });
         }
       }
@@ -685,7 +694,7 @@
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       // الخلفية
       const g = ctx.createLinearGradient(0, 0, 0, innerHeight);
-      g.addColorStop(0, '#101426'); g.addColorStop(1, '#0b0e1a');
+      g.addColorStop(0, this.theme.bg0); g.addColorStop(1, this.theme.bg1);
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, innerWidth, innerHeight);
       ctx.save();
@@ -719,10 +728,10 @@
 
       // الحواجز
       for (const o of this.obstacles) {
-        ctx.fillStyle = '#222a52';
+        ctx.fillStyle = this.theme.ob;
         roundRect(ctx, o.x, o.y, o.w, o.h, 10);
         ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.strokeStyle = this.theme.obs;
         ctx.lineWidth = 2;
         ctx.stroke();
       }
@@ -874,7 +883,7 @@
         const z2 = this.zoneInfo();
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.font = 'bold 18px Cairo, sans-serif'; ctx.fillStyle = '#ffd32a';
-        ctx.fillText('🎯 نقاطك: ' + (this.zpts || 0), innerWidth / 2, 96);
+        ctx.fillText('🎯 نقاطك: ' + (this.zpts || 0), innerWidth / 2, innerHeight - 140);
         const sx = z2.x - this.cam.x, sy = z2.y - this.cam.y;
         if (sx < 0 || sy < 0 || sx > innerWidth || sy > innerHeight) {
           const cx = innerWidth / 2, cy = innerHeight / 2, ang = Math.atan2(sy - cy, sx - cx);
