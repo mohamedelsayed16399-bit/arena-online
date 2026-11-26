@@ -132,6 +132,7 @@
     // تبويبات المتصدرين
     $('tab-wins').onclick = () => showLeaderboard('wins');
     $('tab-kills').onclick = () => showLeaderboard('kills');
+    $('tab-points').onclick = () => showLeaderboard('points');
 
     // أصدقاء
     $('btn-add-friend').onclick = addFriend;
@@ -195,11 +196,15 @@
     $('me-code').textContent = friendCode();
     $('me-code-2').textContent = friendCode();
     show('home');
-    // عداد المتصلين
-    db.ref('presence').orderByChild('online').equalTo(true).limitToLast(200).once('value', (s) => {
-      $('online-count').textContent = '🟢 ' + s.numChildren() + ' لاعب متصل دلوقتي';
-    }).catch(() => { $('online-count').textContent = ''; });
+    // عداد المتصلين (مباشر)
+    if (!onlineWired) {
+      onlineWired = true;
+      db.ref('presence').orderByChild('online').equalTo(true).limitToLast(200).on('value', (s) => {
+        $('online-count').textContent = '🟢 ' + s.numChildren() + ' لاعب متصل دلوقتي';
+      }, () => { $('online-count').textContent = ''; });
+    }
   }
+  let onlineWired = false;
 
   // ============ الغرف ============
   function makeCode() {
@@ -452,9 +457,17 @@
       const myRow = rows.find(r => r.uid === uid);
       if (myRow && myRow.kills > 0) {
         db.ref('leaderboard/' + uid).transaction((cur) => {
-          cur = cur || { name: profile.name, avatar: profile.avatar, kills: 0, wins: 0 };
+          cur = cur || { name: profile.name, avatar: profile.avatar, kills: 0, wins: 0, deaths: 0 };
           cur.name = profile.name; cur.avatar = profile.avatar;
           cur.kills = (cur.kills || 0) + myRow.kills;
+          return cur;
+        }).catch(() => {});
+      }
+      if (myRow && myRow.deaths > 0) {
+        db.ref('leaderboard/' + uid).transaction((cur) => {
+          cur = cur || { name: profile.name, avatar: profile.avatar, kills: 0, wins: 0, deaths: 0 };
+          cur.name = profile.name; cur.avatar = profile.avatar;
+          cur.deaths = (cur.deaths || 0) + myRow.deaths;
           return cur;
         }).catch(() => {});
       }
@@ -548,24 +561,32 @@
     show('leaderboard');
     $('tab-wins').classList.toggle('active', mode === 'wins');
     $('tab-kills').classList.toggle('active', mode === 'kills');
+    $('tab-points').classList.toggle('active', mode === 'points');
     const list = $('leaderboard-list');
     list.innerHTML = '<p class="subtitle">بجيب البيانات…</p>';
-    db.ref('leaderboard').orderByChild(mode).limitToLast(20).once('value', (s) => {
+    db.ref('leaderboard').once('value', (s) => {
       const rows = [];
-      s.forEach((c) => { rows.push({ uid: c.key, ...c.val() }); });
-      rows.reverse();
+      s.forEach((c) => {
+        const v = c.val(); v.uid = c.key;
+        v.points = (v.wins || 0) * 5 + (v.kills || 0) * 2 - (v.deaths || 0);
+        rows.push(v);
+      });
+      const key = mode === 'points' ? 'points' : mode;
+      rows.sort((a, b) => (b[key] || 0) - (a[key] || 0));
+      const top = rows.slice(0, 20);
       list.innerHTML = '';
-      if (!rows.length) {
+      if (!top.length) {
         list.innerHTML = '<p class="subtitle">لسه مفيش نتايج — كن أول بطل! ⚔️</p>';
         return;
       }
-      rows.forEach((r, i) => {
+      top.forEach((r, i) => {
+        const val = mode === 'wins' ? '🏆 ' + (r.wins || 0) : mode === 'kills' ? '☠️ ' + (r.kills || 0) : '⭐ ' + r.points;
         const d = document.createElement('div');
         d.className = 'lb-row' + (i < 3 ? ' top' : '');
         d.innerHTML = `<span class="lb-rank">#${i + 1}</span>
           <span>${r.avatar || '🦊'}</span>
-          <span class="lb-name">${esc(r.name || 'لاعب')}${r.uid === uid ? ' (انت)' : ''}</span>
-          <span class="lb-val">${mode === 'wins' ? '🏆 ' + (r.wins || 0) : '☠️ ' + (r.kills || 0)}</span>`;
+          <span class="lb-name">${esc(r.name || 'لاعب')}${r.uid === uid ? ' (انت)' : ''}<small class="lb-sub">🏆${r.wins || 0} ☠️${r.kills || 0} 💀${r.deaths || 0}</small></span>
+          <span class="lb-val">${val}</span>`;
         list.appendChild(d);
       });
     });
