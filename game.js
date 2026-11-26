@@ -312,7 +312,7 @@
 
     ultimate() {
       if (!this.myAlive || !this.running || (this.ult || 0) < 100) return;
-      this.ult = 0;
+      this.ult = 0; this.ach('ult');
       const R = 460, nowU = performance.now();
       this.rings.push({ x: this.myX, y: this.myY, age: 0, life: 0.8, R }); this.rings.push({ x: this.myX, y: this.myY, age: -0.12, life: 0.8, R: R * 0.7 });
       this.burst(this.myX, this.myY, '#18dcff', 60, 700); this.burst(this.myX, this.myY, '#ffffff', 30, 500);
@@ -809,7 +809,7 @@
             this.gemTaken[gm.key] = true;
             this.burst(gm.x, gm.y, gm.gold ? '#ffd32a' : '#18dcff', 12, 200); if (Sfx.pick) Sfx.pick();
             const pts = gm.gold ? 5 : 1;
-            const award = () => { this.zpts = (this.zpts || 0) + pts; this.coin(gm.gold ? 3 : 1); if (gm.gold) this.onFeed('💎 جوهرة دهبية! +٥'); this.writeSelf(true); };
+            const award = () => { this.ach('gem'); this.zpts = (this.zpts || 0) + pts; this.coin(gm.gold ? 3 : 1); if (gm.gold) this.onFeed('💎 جوهرة دهبية! +٥'); this.writeSelf(true); };
             this.db.ref('rooms/' + this.roomCode + '/gems/' + gm.key).transaction((cur) => (cur ? undefined : this.me.uid)).then((r) => {
               if (r && r.committed) award();
             }).catch(() => { award(); });
