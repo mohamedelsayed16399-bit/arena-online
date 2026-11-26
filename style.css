@@ -81,11 +81,22 @@ input:focus { border-color:var(--primary); }
 #hud-hp { position:absolute; top:52px; right:14px; width:140px; height:12px; background:rgba(0,0,0,.55); border-radius:8px; overflow:hidden; }
 #hud-alive { background:rgba(0,0,0,.55); border-radius:10px; padding:4px 10px; font-size:13px; font-weight:700; }
 .lb-sub { display:block; font-size:11px; color:var(--muted); font-weight:400; margin-top:2px; }
+.rooms-list { display:flex; flex-direction:column; gap:10px; width:100%; max-width:460px; margin:14px auto; }
+.room-row { display:flex; align-items:center; gap:10px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.09); border-radius:14px; padding:10px 14px; }
+.room-code { font-weight:800; color:var(--gold,#eccc68); min-width:52px; }
+.room-players { font-size:13px; color:var(--muted); }
+.room-state { flex:1; font-size:12px; }
+.st-free { color:#2ed573; } .st-lobby { color:#eccc68; } .st-playing { color:#ff6b81; }
+.room-join[disabled] { opacity:.45; cursor:default; }
 #hud-hp-fill { height:100%; width:100%; background:linear-gradient(90deg,var(--accent),#7bed9f); transition:width .2s; }
 #hud-hp.low #hud-hp-fill { background:linear-gradient(90deg,#ff4757,#ff6b81); animation:hppulse .5s infinite alternate; }
 @keyframes hppulse { from { opacity:1; } to { opacity:.45; } }
 #hud-mode { background:rgba(255,165,2,.85); color:#1a1d29; border-radius:10px; padding:3px 10px; font-size:12px; font-weight:800; }
 #hud-mode:empty { display:none; }
+#emotes { position:absolute; bottom:18px; left:50%; transform:translateX(-50%); display:flex; gap:8px; z-index:6; }
+.emote { font-size:20px; background:rgba(0,0,0,.5); border:1px solid rgba(255,255,255,.18); border-radius:50%; width:42px; height:42px; cursor:pointer; transition:transform .1s; }
+.emote:active { transform:scale(1.25); }
+@media (max-width:640px) { #emotes { bottom:150px; left:14px; transform:none; flex-direction:column; } .emote { width:38px; height:38px; font-size:17px; } }
 #kill-feed { position:absolute; top:78px; left:14px; display:flex; flex-direction:column; gap:4px; font-size:12px; pointer-events:none; }
 .kill-feed-item { background:rgba(0,0,0,.55); border-radius:8px; padding:3px 10px; animation:fadein .2s; }
 @keyframes fadein { from{opacity:0; transform:translateX(-10px)} to{opacity:1} }
