@@ -43,7 +43,7 @@
     respawnAt: 0,
     pickups: {}, lastPickupSpawn: 0,
     muzzleUntil: 0, hitFlashUntil: 0, lastHpShown: null,
-    speedUntil: 0, shieldUntil: 0, protectedUntil: 0, weaponUntil: 0, weapon: '', fx: [], bots: [], botCheckAt: 0, botAnnounced: false, shakeUntil: 0, specIdx: 0, lastBurst: 0,
+    speedUntil: 0, shieldUntil: 0, protectedUntil: 0, weaponUntil: 0, weapon: '', fx: [], mode: 'classic', zpts: 0, zoneAcc: 0, zoneCache: null, bots: [], botCheckAt: 0, botAnnounced: false, shakeUntil: 0, specIdx: 0, lastBurst: 0,
     rafId: null, lastTs: 0,
     onRoundEnd: null, onFeed: null, onHud: null,
     seed: 1,
@@ -54,6 +54,7 @@
       this.me = opts.me; this.host = opts.host;
       this.seed = opts.seed || 1;
       this.endsAt = opts.endsAt || 0;
+      this.mode = opts.mode || 'classic'; this.zpts = 0; this.zoneAcc = 0; this.zoneCache = null;
       this.onRoundEnd = opts.onRoundEnd; this.onFeed = opts.onFeed || (() => {}); this.onHud = opts.onHud || (() => {});
       this.canvas = document.getElementById('game-canvas');
       this.ctx = this.canvas.getContext('2d');
@@ -228,6 +229,7 @@
         angle: Math.round(this.myAngle * 100) / 100,
         hp: this.myHp, alive: this.myAlive,
         sh: performance.now() < this.shieldUntil ? 1 : 0,
+        zpts: this.zpts || 0,
       }).catch(() => {});
     },
 
@@ -238,6 +240,18 @@
         t: 'emote', uid: this.me.uid, e,
         ts: firebase.database.ServerValue.TIMESTAMP,
       }).catch(() => {});
+    },
+
+    zoneInfo() {
+      if (this.mode !== 'zone') return null;
+      const idx = Math.floor(Math.max(0, this.endsAt - this.serverNow()) / 15000);
+      if (!this.zoneCache || this.zoneCache.idx !== idx) {
+        const rnd = mulberry32(((this.seed * 7919) + idx * 104729) >>> 0);
+        const p = this.freeSpot(rnd);
+        if (this.zoneCache) this.onFeed('🎯 منطقة السيطرة اتنقلت!');
+        this.zoneCache = { idx, x: p.x, y: p.y, r: 140 };
+      }
+      return this.zoneCache;
     },
 
     burst(x, y, color, n, spd) {
@@ -455,6 +469,13 @@
       }
 
       // الطلقات
+      // منطقة السيطرة: نقطة كل ثانية وانت جواها
+      const zn = this.zoneInfo();
+      if (zn && this.myAlive && Math.hypot(this.myX - zn.x, this.myY - zn.y) < zn.r) {
+        this.zoneAcc += dt;
+        if (this.zoneAcc >= 1) { this.zoneAcc -= 1; this.zpts = (this.zpts || 0) + 1; this.writeSelf(true); }
+      }
+
       // بوتات التدريب: بتظهر بس لما تكون لوحدك في الغرفة
       const nowB = performance.now();
       if (nowB >= this.botCheckAt) {
@@ -572,7 +593,11 @@
       this.specName = '';
       if (!this.myAlive) {
         const alive = Object.keys(this.players).filter((u) => this.players[u].alive && this.players[u].x !== undefined);
-        if (alive.length) {
+        const liveBots = this.bots.filter((x) => x.alive);
+        if (!alive.length && liveBots.length) {
+          const bb = liveBots[this.specIdx % liveBots.length];
+          camX = bb.x; camY = bb.y; this.specName = bb.name;
+        } else if (alive.length) {
           const u = alive[this.specIdx % alive.length];
           camX = this.players[u].x; camY = this.players[u].y; this.specName = this.players[u].name || 'لاعب';
         }
@@ -645,11 +670,12 @@
       const rows = [];
       for (const uid in this.players) {
         const p = this.players[uid];
-        rows.push({ uid, name: p.name, avatar: p.avatar, kills: p.kills || 0, deaths: p.deaths || 0 });
+        rows.push({ uid, name: p.name, avatar: p.avatar, kills: p.kills || 0, deaths: p.deaths || 0, zpts: p.zpts || 0 });
       }
       // أضفني أنا
-      rows.push({ uid: this.me.uid, name: this.me.name, avatar: this.me.avatar, kills: this.kills || 0, deaths: this.deaths || 0 });
-      rows.sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
+      rows.push({ uid: this.me.uid, name: this.me.name, avatar: this.me.avatar, kills: this.kills || 0, deaths: this.deaths || 0, zpts: this.zpts || 0 });
+      if (this.mode === 'zone') rows.sort((a, b) => b.zpts - a.zpts || b.kills - a.kills);
+      else rows.sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
       return rows;
     },
 
@@ -699,6 +725,22 @@
         ctx.strokeStyle = 'rgba(255,255,255,0.08)';
         ctx.lineWidth = 2;
         ctx.stroke();
+      }
+
+      // منطقة السيطرة
+      const zd = this.zoneInfo();
+      if (zd) {
+        const inside = this.myAlive && Math.hypot(this.myX - zd.x, this.myY - zd.y) < zd.r;
+        const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 300);
+        const zg = ctx.createRadialGradient(zd.x, zd.y, 10, zd.x, zd.y, zd.r);
+        zg.addColorStop(0, inside ? 'rgba(46,213,115,0.45)' : 'rgba(255,211,42,0.30)');
+        zg.addColorStop(1, inside ? 'rgba(46,213,115,0.18)' : 'rgba(255,211,42,0.10)');
+        ctx.fillStyle = zg;
+        ctx.beginPath(); ctx.arc(zd.x, zd.y, zd.r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = inside ? '#2ed573' : '#ffd32a'; ctx.lineWidth = 3 + pulse * 3;
+        ctx.beginPath(); ctx.arc(zd.x, zd.y, zd.r, 0, Math.PI * 2); ctx.stroke();
+        ctx.font = '30px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('🎯', zd.x, zd.y);
       }
 
       // القدرات
@@ -828,6 +870,21 @@
         ctx.fillRect(0, 0, innerWidth, innerHeight);
       }
 
+      if (this.mode === 'zone') {
+        const z2 = this.zoneInfo();
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = 'bold 18px Cairo, sans-serif'; ctx.fillStyle = '#ffd32a';
+        ctx.fillText('🎯 نقاطك: ' + (this.zpts || 0), innerWidth / 2, 96);
+        const sx = z2.x - this.cam.x, sy = z2.y - this.cam.y;
+        if (sx < 0 || sy < 0 || sx > innerWidth || sy > innerHeight) {
+          const cx = innerWidth / 2, cy = innerHeight / 2, ang = Math.atan2(sy - cy, sx - cx);
+          const ax = cx + Math.cos(ang) * (Math.min(cx, cy) - 40), ay = cy + Math.sin(ang) * (Math.min(cx, cy) - 40);
+          ctx.save(); ctx.translate(ax, ay); ctx.rotate(ang);
+          ctx.fillStyle = '#ffd32a'; ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(-10, -11); ctx.lineTo(-10, 11); ctx.closePath(); ctx.fill();
+          ctx.restore();
+        }
+      }
+
       // شريط السلاح + المشاهدة
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       const wl = this.weaponUntil - performance.now();
@@ -851,6 +908,8 @@
       c.clearRect(0, 0, S, S);
       c.fillStyle = 'rgba(255,255,255,0.18)';
       for (const o of this.obstacles) c.fillRect(o.x * sc, o.y * sc, Math.max(2, o.w * sc), Math.max(2, o.h * sc));
+      const zm = this.zoneInfo();
+      if (zm) { c.strokeStyle = '#ffd32a'; c.lineWidth = 2; c.beginPath(); c.arc(zm.x * sc, zm.y * sc, zm.r * sc, 0, Math.PI * 2); c.stroke(); }
       c.fillStyle = '#2ed573';
       for (const pid in this.pickups) { const pk = this.pickups[pid]; c.beginPath(); c.arc(pk.x * sc, pk.y * sc, 3, 0, Math.PI * 2); c.fill(); }
       for (const uid in this.players) {
