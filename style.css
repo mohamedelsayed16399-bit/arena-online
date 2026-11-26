@@ -151,3 +151,6 @@ input:focus { border-color:var(--primary); }
 .ach-list h3 { margin:0 0 10px; text-align:center; }
 .ach-item { padding:8px 12px; border-radius:10px; background:rgba(255,255,255,.05); margin-bottom:6px; opacity:.5; font-size:14px; }
 .ach-item.on { opacity:1; background:rgba(46,213,115,.15); }
+
+.gren-btn { bottom:245px; background:rgba(255,159,67,.22); border-color:rgba(255,159,67,.8); }
+@media (min-width:641px) { .gren-btn { bottom:165px; right:40px; } }
