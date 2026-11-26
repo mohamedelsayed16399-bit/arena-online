@@ -133,7 +133,7 @@
         const horiz = i % 2 === 0;
         const w = horiz ? 40 : 220, h = horiz ? 220 : 40;
         const cx = 500 + r2() * (WORLD - 1000), cy = 500 + r2() * (WORLD - 1000);
-        this.obstacles.push({ x: cx, y: cy, w, h, mv: { cx, cy, ax: horiz ? 1 : 0, ay: horiz ? 0 : 1, amp: 220 + r2() * 160, sp: 0.5 + r2() * 0.5, ph: r2() * 6.28 } });
+        this.obstacles.push({ x: cx, y: cy, w, h, mv: { cx, cy, ax: horiz ? 1 : 0, ay: horiz ? 0 : 1, amp: 220 + r2() * 160, sp: 0.25 + r2() * 0.25, ph: r2() * 6.28 } });
       }
       this.updateMovers(true);
     },
