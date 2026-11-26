@@ -7,7 +7,7 @@
 <title>ساحة الأبطال | لعبة أونلاين جماعية</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=11">
+<link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
 <div id="app">
@@ -95,6 +95,7 @@
       <div id="hud-hp"><div id="hud-hp-fill"></div></div>
     </div>
     <div id="kill-feed"></div>
+    <button id="btn-dash" class="dash-btn" type="button">💨</button>
     <div id="emotes">
       <button class="emote" type="button">😂</button>
       <button class="emote" type="button">🔥</button>
@@ -156,6 +157,7 @@
   <section id="screen-stats" class="screen">
     <h1>📊 إحصائياتي</h1>
     <div id="stats-card" class="card stats-card"></div>
+    <div id="ach-list" class="card stats-card ach-list"></div>
     <button id="btn-back-from-stats" class="btn btn-ghost">رجوع</button>
   </section>
 
@@ -180,7 +182,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="firebase-config.js?v=8"></script>
-<script src="game.js?v=16"></script>
-<script src="app.js?v=13"></script>
+<script src="game.js?v=17"></script>
+<script src="app.js?v=14"></script>
 </body>
 </html>
