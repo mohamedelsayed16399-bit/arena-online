@@ -92,7 +92,7 @@
       this.lastTs = performance.now();
       const loop = (ts) => {
         if (!this.running) return;
-        const dt = Math.min(0.05, (ts - this.lastTs) / 1000);
+        const dt = Math.min(0.05, (ts - this.lastTs) / 1000) * (performance.now() < (this.slowUntil || 0) ? 0.3 : 1);
         this.lastTs = ts;
         this.tick(dt);
         this.draw();
@@ -1087,6 +1087,7 @@
                 if (bt.boss && this.myAlive) {
                   this.weapon = 'laser'; this.weaponUntil = performance.now() + 15000; this.myHp = Math.min(MAX_HP, this.myHp + 60); this.onHud(this.myHp);
                   this.rewardBanner = { text: '🎁 غنيمة الزعيم: ليزر ١٥ث + صحة', until: performance.now() + 3200 };
+                  this.slowUntil = performance.now() + 1300; this.shakeUntil = Math.max(this.shakeUntil, performance.now() + 700); for (let q = 0; q < 4; q++) this.rings.push({ x: bt.x, y: bt.y, age: -q * 0.12, life: 0.9, R: 120 + q * 90 }); this.burst(bt.x, bt.y, '#ffffff', 60, 520); this.burst(bt.x, bt.y, '#ffd32a', 50, 420); try { Sfx.boom(); } catch (e3) { /* ignore */ }
                   this.burst(bt.x, bt.y, '#00f5ff', 40, 420); this.onFeed('🎁 غنيمة الزعيم: سلاح الليزر المخترق ١٥ ثانية!');
                 }
                 Sfx.kill();
