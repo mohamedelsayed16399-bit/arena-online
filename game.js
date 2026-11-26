@@ -576,6 +576,15 @@
       this.myHp = 0;
       this.deaths = (this.deaths || 0) + 1;
       this.respawnAt = performance.now() + RESPAWN_SEC * 1000;
+      try {
+        let kn = '';
+        if (killerUid === 'storm') kn = '🌪️ العاصفة'; else if (killerUid === 'hole') kn = '🕳️ الثقب الأسود'; else if (killerUid === 'lava') kn = '🌋 الحمم';
+        else if (killerUid && String(killerUid).indexOf('bot') === 0) { const kb = this.bots.find((q) => q.id === killerUid); kn = kb ? kb.name : '🤖 بوت'; }
+        else if (killerUid && this.players[killerUid]) kn = (this.players[killerUid].avatar || '') + ' ' + (this.players[killerUid].name || 'لاعب');
+        const tips = ['💡 استخدم الداش (Space) تهرب من الطلقات', '💡 الدرع بيصدّ النيازك والاندفاعات', '💡 القنبلة (G) بتكسر تجمع البوتات', '💡 خلّي الحيطان بينك وبين القناص', '💡 الموجة الجاية فيها ترقيات، اختار دروع لو بتموت كتير'];
+        const bye = document.getElementById('respawn-by');
+        if (bye) bye.textContent = (kn ? '☠️ قتلك: ' + kn + ' — ' : '') + tips[Math.floor(Math.random() * tips.length)];
+      } catch (e) {}
       const ref = this.db.ref('rooms/' + this.roomCode + '/players/' + this.me.uid);
       ref.update({ alive: false, hp: 0, deaths: this.deaths }).catch(() => {});
       if (killerUid === 'storm') {
