@@ -120,6 +120,7 @@
     $('btn-ready').onclick = toggleReady;
     $('btn-start').onclick = () => hostStartRound('classic');
     $('btn-start-blitz').onclick = () => hostStartRound('blitz');
+    $('btn-start-zone').onclick = () => hostStartRound('zone');
     $('btn-send-chat').onclick = sendChat;
     $('input-chat').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
 
@@ -374,6 +375,7 @@
     $('btn-ready').textContent = meReady ? '⏳ مستني الباقي' : '✋ جاهز';
     $('btn-start').classList.toggle('hidden', !isHost);
     $('btn-start-blitz').classList.toggle('hidden', !isHost);
+    $('btn-start-zone').classList.toggle('hidden', !isHost);
     $('lobby-hint').textContent = isHost
       ? 'انت الهوست — لما الكل يجهز اضغط ابدأ (أو ابدأ لوحدك)'
       : 'شارك الكود مع صحابك عشان ينضموا';
@@ -388,7 +390,7 @@
   function hostStartRound(mode) {
     window._lastMode = mode;
     if (!isHost || !roomCode) return;
-    const secs = mode === 'blitz' ? 60 : ROUND_SECONDS;
+    const secs = mode === 'blitz' ? 60 : mode === 'zone' ? 90 : ROUND_SECONDS;
     const endsAt = Date.now() + secs * 1000 + 4000; // +٤ ثواني هامش سيرفر
     db.ref('rooms/' + roomCode + '/state').set({
       endsAt,
@@ -429,13 +431,13 @@
   function startGame(endsAt, mode) {
     if ($('screen-game').classList.contains('active') && window.ArenaGame.running) return;
     show('game');
-    $('hud-mode').textContent = mode === 'blitz' ? '⚡ بليتز' : '';
+    $('hud-mode').textContent = mode === 'blitz' ? '⚡ بليتز' : mode === 'zone' ? '🎯 السيطرة' : '';
     ArenaGame.start({
       db, roomCode,
       me: { uid, name: profile.name, avatar: profile.avatar, color: myColor, joinedAt: myJoinedAt },
       host: isHost,
       seed: roomSeed,
-      endsAt,
+      endsAt, mode,
       onFeed: addKillFeed,
     });
   }
@@ -501,7 +503,7 @@
       d.innerHTML = `<span class="r-rank">${medals[i] || (i + 1)}</span>
         <span>${r.avatar || '🦊'}</span>
         <span class="r-name">${esc(r.name)}${r.uid === uid ? ' (انت)' : ''}</span>
-        <span class="r-score">☠️ ${r.kills} | 💀 ${r.deaths}</span>`;
+        <span class="r-score">${ArenaGame.mode === 'zone' ? '🎯 ' + (r.zpts || 0) + ' | ' : ''}☠️ ${r.kills} | 💀 ${r.deaths}</span>`;
       list.appendChild(d);
     });
     show('results');
@@ -518,7 +520,7 @@
           const ps = s.val() || {};
           const up = {};
           Object.keys(ps).forEach((u) => {
-            up[u + '/ready'] = false;
+            up[u + '/zpts'] = 0; up[u + '/ready'] = false;
             up[u + '/kills'] = 0;
             up[u + '/deaths'] = 0;
             up[u + '/hp'] = ARENA.MAX_HP;
