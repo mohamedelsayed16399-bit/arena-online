@@ -8,7 +8,7 @@
   const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
   const $ = (id) => document.getElementById(id);
-  const screens = ['shop', 'loading', 'profile', 'home', 'lobby', 'game', 'results', 'leaderboard', 'friends', 'how', 'rooms', 'stats'];
+  const screens = ['missions', 'shop', 'loading', 'profile', 'home', 'lobby', 'game', 'results', 'leaderboard', 'friends', 'how', 'rooms', 'stats'];
 
   let db = null, auth = null, uid = null;
   let profile = null;       // {name, avatar}
@@ -125,6 +125,46 @@
         row.appendChild(bt); $('shop-list').appendChild(row);
       });
     }
+    const MPOOL = [
+      { id: 'kill', t: '☠️ اقتل {n} عدو', g: 20, r: 50 }, { id: 'wave', t: '🌊 وصّل للموجة {n}', g: 6, r: 70, max: true },
+      { id: 'gem', t: '💎 اجمع {n} جوهرة (وضع الجواهر)', g: 12, r: 60 }, { id: 'ult', t: '⚡ استخدم القدرة الخاصة {n} مرات', g: 2, r: 40 },
+      { id: 'dash', t: '💨 اعمل {n} داش', g: 10, r: 30 }, { id: 'gren', t: '💣 ارمي {n} قنابل', g: 5, r: 40 }, { id: 'pickup', t: '🎁 التقط {n} قدرات', g: 6, r: 30 }
+    ];
+    const todayKey = () => { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
+    function loadMissions() {
+      let m = null; try { m = JSON.parse(localStorage.getItem('arena_missions')); } catch (e) { m = null; }
+      if (!m || m.date !== todayKey()) {
+        let hs = 0; const k = todayKey(); for (let i = 0; i < k.length; i++) hs = (hs * 31 + k.charCodeAt(i)) >>> 0;
+        const pool = MPOOL.slice(); const list = [];
+        for (let i = 0; i < 3; i++) { const j = hs % pool.length; hs = (hs * 1103515245 + 12345) >>> 0; list.push({ id: pool[j].id, prog: 0, claimed: false }); pool.splice(j, 1); }
+        m = { date: k, list }; localStorage.setItem('arena_missions', JSON.stringify(m));
+      }
+      return m;
+    }
+    function trackMission(type, val) {
+      try {
+        const m = loadMissions(); let ch = false;
+        m.list.forEach((x) => { if (x.id !== type) return; const def = MPOOL.find((q) => q.id === x.id); if (def.max) { if (val > x.prog) { x.prog = val; ch = true; } } else if (x.prog < def.g) { x.prog++; ch = true; } });
+        if (ch) localStorage.setItem('arena_missions', JSON.stringify(m));
+      } catch (e) { /* ignore */ }
+    }
+    const wrapAch = () => { if (!window.ArenaAch || window.ArenaAch._w) return !!(window.ArenaAch && window.ArenaAch._w); const _hit = window.ArenaAch.hit.bind(window.ArenaAch); window.ArenaAch.hit = (type, val) => { _hit(type, val); trackMission(type, val); }; window.ArenaAch._w = true; return true; };
+    if (!wrapAch()) { const iv = setInterval(() => { if (wrapAch()) clearInterval(iv); }, 300); }
+    function renderMissions() {
+      const m = loadMissions(); const box = $('missions-list'); box.innerHTML = '';
+      m.list.forEach((x, i) => {
+        const def = MPOOL.find((q) => q.id === x.id); const done = x.prog >= def.g;
+        const row = document.createElement('div'); row.className = 'shop-row mission-row';
+        row.innerHTML = '<div style="flex:1"><b>' + def.t.replace('{n}', def.g) + '</b><div class="m-bar"><i style="width:' + Math.min(100, 100 * x.prog / def.g) + '%"></i></div><small>' + Math.min(x.prog, def.g) + ' / ' + def.g + '</small></div>';
+        const bt = document.createElement('button'); bt.className = 'btn btn-ghost shop-btn';
+        if (x.claimed) { bt.textContent = '✅ اتسلّمت'; bt.disabled = true; }
+        else if (done) { bt.textContent = '🎁 استلم 🪙' + def.r; bt.onclick = () => { x.claimed = true; localStorage.setItem('arena_missions', JSON.stringify(m)); localStorage.setItem('arena_coins', String(coinsNow() + def.r)); toast('+' + def.r + ' عملة'); updShopBtn(); renderMissions(); }; }
+        else { bt.textContent = '🪙 ' + def.r; bt.disabled = true; }
+        row.appendChild(bt); box.appendChild(row);
+      });
+    }
+    $('btn-missions').onclick = () => { renderMissions(); show('missions'); };
+    $('btn-back-from-missions').onclick = () => show('home');
     $('btn-shop').onclick = () => { renderShop(); show('shop'); };
     $('btn-back-from-shop').onclick = () => { updShopBtn(); show('home'); };
     updShopBtn(); setInterval(updShopBtn, 4000);
