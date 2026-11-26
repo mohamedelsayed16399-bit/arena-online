@@ -163,3 +163,10 @@ input:focus { border-color:var(--primary); }
 .aw-grid small { font-size:11px; opacity:.8; }
 .aw-badges { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-top:10px; }
 .aw-badges span { background:linear-gradient(135deg,#3a2f10,#241b06); border:1px solid var(--gold); border-radius:999px; padding:4px 10px; font-size:13px; }
+
+#upgrade-picker { position:fixed; left:0; right:0; bottom:90px; z-index:60; display:none; flex-direction:column; align-items:center; gap:8px; pointer-events:none; }
+#upgrade-picker .up-title { background:rgba(0,0,0,.75); color:var(--gold); font-weight:900; padding:6px 16px; border-radius:12px; font-size:16px; }
+#upgrade-picker .up-row { display:flex; gap:10px; pointer-events:auto; }
+.up-card { position:relative; width:112px; min-height:112px; background:linear-gradient(160deg,#2b2f77,#1b1d4a); border:2px solid var(--gold); border-radius:14px; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:8px 6px; font-family:inherit; cursor:pointer; box-shadow:0 0 14px rgba(255,200,0,.35); }
+.up-card .up-i { font-size:30px; } .up-card b { font-size:14px; } .up-card small { font-size:11px; opacity:.85; text-align:center; } .up-card em { position:absolute; top:3px; left:7px; font-style:normal; font-size:11px; opacity:.6; }
+@media (max-width:640px){ #upgrade-picker { bottom:150px; } .up-card { width:98px; min-height:100px; } }
