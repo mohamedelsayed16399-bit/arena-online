@@ -1078,7 +1078,9 @@
             if (bt.alive && !(b.hit && b.hit[bt.id]) && Math.hypot(b.x - bt.x, b.y - bt.y) < PLAYER_R + 4) {
               if (b.pierce) { (b.hit = b.hit || {})[bt.id] = 1; } else dead = true;
               this.rs.hits++;
-              bt.hp -= BULLET_DMG * (b.h ? 2 : 1) * (b.dm || (b.pierce ? 1.6 : 1)) * (1 + 0.25 * this.up.dmg);
+              const dmgN = BULLET_DMG * (b.h ? 2 : 1) * (b.dm || (b.pierce ? 1.6 : 1)) * (1 + 0.25 * this.up.dmg);
+              bt.hp -= dmgN;
+              this.dmgNums = this.dmgNums || []; this.dmgNums.push({ x: bt.x + (Math.random() - 0.5) * 24, y: bt.y - 30, t: Math.round(dmgN), at: performance.now(), big: !!b.h || dmgN >= 40 }); if (this.dmgNums.length > 40) this.dmgNums.shift();
               if (this.up.steal && this.myAlive) { this.myHp = Math.min(MAX_HP, this.myHp + 2 * this.up.steal); this.onHud(this.myHp); }
               this.burst(bt.x, bt.y, '#ff6b81', 8, 180);
               if (bt.hp <= 0) {
@@ -1434,6 +1436,12 @@
       }
 
       // مؤثرات
+      if (this.dmgNums && this.dmgNums.length) {
+        const dn = performance.now(); this.dmgNums = this.dmgNums.filter((q) => dn - q.at < 800);
+        ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 4; ctx.strokeStyle = '#000';
+        for (const q of this.dmgNums) { const pr = (dn - q.at) / 800; ctx.globalAlpha = 1 - pr * pr; ctx.font = 'bold ' + (q.big ? 22 : 16) + 'px Cairo, sans-serif'; ctx.fillStyle = q.big ? '#ffd32a' : '#ffffff'; const yy = q.y - pr * 36; ctx.strokeText(q.t, q.x, yy); ctx.fillText(q.t, q.x, yy); }
+        ctx.restore();
+      }
       for (const f of this.fx) {
         ctx.globalAlpha = Math.max(0, 1 - f.age / f.life);
         ctx.fillStyle = f.c;
