@@ -1044,6 +1044,14 @@
         ctx.globalAlpha = 1;
       };
       for (const bt of this.bots) drawPlayer(bt.id, { name: bt.name, avatar: bt.boss ? '👹' : '🤖', color: bt.color, x: bt.x, y: bt.y, alive: bt.alive, hp: Math.min(bt.hp, MAX_HP), angle: bt.angle }, false);
+      for (const bt of this.bots) {
+        if (!bt.boss || !bt.alive) continue;
+        ctx.strokeStyle = '#ff4757'; ctx.lineWidth = 5; ctx.shadowColor = '#ff4757'; ctx.shadowBlur = 16;
+        ctx.beginPath(); ctx.arc(bt.x, bt.y, PLAYER_R + 12, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(bt.x - 40, bt.y - PLAYER_R - 28, 80, 8);
+        ctx.fillStyle = '#ff4757'; ctx.fillRect(bt.x - 40, bt.y - PLAYER_R - 28, 80 * Math.max(0, bt.hp) / 300, 8);
+        ctx.font = '16px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#ffd32a'; ctx.fillText('\u{1F451}', bt.x, bt.y - PLAYER_R - 38);
+      }
       for (const uid in this.players) drawPlayer(uid, this.players[uid], false);
       drawPlayer(this.me.uid, { name: this.me.name, avatar: this.me.avatar, color: this.me.color }, true);
 
