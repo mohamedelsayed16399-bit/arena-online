@@ -550,10 +550,25 @@
   }
 
   // ============ اللعب ============
+  function maybeTutorial() {
+    let done = false; try { done = localStorage.getItem('arena_tut') === '1'; } catch (e) {}
+    const box = $('tutorial'); if (done || !box) return;
+    const touch = 'ontouchstart' in window;
+    $('tut-list').innerHTML = (touch
+      ? ['🕹️ العصا الشمال: حرّك لاعبك', '🎯 العصا اليمين: صوّب وبتضرب لوحدها', '💨 زر الداش للهروب، 💣 للقنبلة، ⚡ للقدرة الخاصة']
+      : ['⌨️ WASD أو الأسهم: حركة', '🖱️ الماوس: صوّب، كليك: اضرب', 'Space: داش 💨 | G: قنبلة 💣 | Q: القدرة الخاصة ⚡']
+    ).concat(['🎁 اجمع العلب: صحة، درع، أسلحة', '🌊 لو لوحدك: موجات بوتات وزعيم كل ٥ موجات وترقيات بينهم']).map((t) => '<li>' + t + '</li>').join('');
+    box.classList.remove('hidden');
+    const close = () => { box.classList.add('hidden'); try { localStorage.setItem('arena_tut', '1'); } catch (e) {} };
+    $('btn-tut-ok').onclick = close;
+    setTimeout(close, 25000);
+  }
+
   function startGame(endsAt, mode) {
     if ($('screen-game').classList.contains('active') && window.ArenaGame.running) return;
     show('game');
     $('hud-mode').textContent = mode === 'coop' ? '🤝 تعاون' : mode === 'team' ? '🔴🔵 فريق ضد فريق' : mode === 'blitz' ? '⚡ بليتز' : mode === 'zone' ? '🎯 السيطرة' : mode === 'gems' ? '💎 صيد الجواهر' : mode === 'storm' ? '🌪️ العاصفة' : '';
+    maybeTutorial();
     ArenaGame.start({
       db, roomCode,
       me: { uid, name: profile.name, avatar: profile.avatar, color: myColor, joinedAt: myJoinedAt },
