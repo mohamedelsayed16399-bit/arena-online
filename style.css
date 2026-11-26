@@ -142,3 +142,5 @@ input:focus { border-color:var(--primary); }
 .stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; text-align:center; }
 .stats-grid div { background:rgba(255,255,255,.06); border-radius:12px; padding:10px 4px; display:flex; flex-direction:column; gap:2px; }
 .stats-grid span { font-size:20px; } .stats-grid b { font-size:22px; } .stats-grid small { font-size:11px; opacity:.7; }
+#respawn-overlay { background:rgba(0,0,0,.22); pointer-events:none; justify-content:flex-end; padding-bottom:110px; font-size:26px; }
+#respawn-count { font-size:48px; }
