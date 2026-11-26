@@ -17,6 +17,7 @@
     { name: 'ليل', bg0: '#101426', bg1: '#0b0e1a', ob: '#222a52', obs: 'rgba(255,255,255,0.08)' },
     { name: 'صحرا', bg0: '#2a1f12', bg1: '#1a1209', ob: '#5a4326', obs: 'rgba(255,214,150,0.18)' },
     { name: 'تلج', bg0: '#0f2430', bg1: '#08141c', ob: '#2c5a73', obs: 'rgba(180,235,255,0.22)' },
+    { name: 'حمم', bg0: '#2a0f0f', bg1: '#150606', ob: '#4a1d1d', obs: 'rgba(255,120,80,0.28)' },
   ];
   const BOT_LEVELS = { easy: { fire: 1600, err: 0.9, spd: 110 }, normal: { fire: 950, err: 0.45, spd: 150 }, hard: { fire: 600, err: 0.18, spd: 190 } };
   const PALETTE = ['#ff4757', '#2ed573', '#1e90ff', '#ffa502', '#eccc68', '#7bed9f', '#70a1ff', '#ff6b81'];
@@ -68,6 +69,7 @@
       this.running = true; this.ended = false;
       this.bullets = []; this.players = {}; this.pickups = {}; this.lastPickupSpawn = 0; this.streaks = {};
       this.genObstacles();
+      this.buildHazards();
       this.resize();
       window.addEventListener('resize', this._resize = () => this.resize());
       this.bindInput();
@@ -126,6 +128,15 @@
           w, h,
         });
       }
+    },
+
+    buildHazards() {
+      this.hazards = [];
+      const nm = this.theme && this.theme.name;
+      if (nm !== 'حمم' && nm !== 'تلج') return;
+      const rnd = mulberry32(((this.seed * 31 + 555) >>> 0));
+      const n = nm === 'حمم' ? 5 : 4;
+      for (let k = 0; k < n; k++) { const p = this.freeSpot(rnd); this.hazards.push({ x: p.x, y: p.y, r: nm === 'حمم' ? 110 : 150, type: nm === 'حمم' ? 'lava' : 'ice' }); }
     },
 
     freeSpot(rnd) {
@@ -425,7 +436,9 @@
       this.respawnAt = performance.now() + RESPAWN_SEC * 1000;
       const ref = this.db.ref('rooms/' + this.roomCode + '/players/' + this.me.uid);
       ref.update({ alive: false, hp: 0, deaths: this.deaths }).catch(() => {});
-      if (killerUid && String(killerUid).indexOf('bot') === 0) {
+      if (killerUid === 'lava') {
+        this.onFeed('🌋 الحمم قتلتك');
+      } else if (killerUid && String(killerUid).indexOf('bot') === 0) {
         this.onFeed('☠️ قتلك بوت');
       } else if (killerUid && killerUid !== this.me.uid) {
         this.db.ref('rooms/' + this.roomCode + '/players/' + killerUid + '/kills')
@@ -569,6 +582,8 @@
         if (this.joyL.active) { mx = this.joyL.dx; my = this.joyL.dy; }
         const dashing = performance.now() < this.dashUntil;
         if (dashing) { mx = this.dashX; my = this.dashY; }
+        const onIce = (this.hazards || []).some((h) => h.type === 'ice' && Math.hypot(this.myX - h.x, this.myY - h.y) < h.r);
+        if (onIce && !dashing) { const kk = Math.min(1, dt * 1.8); this.smx = (this.smx || 0) + (mx - (this.smx || 0)) * kk; this.smy = (this.smy || 0) + (my - (this.smy || 0)) * kk; mx = this.smx; my = this.smy; if (Math.random() < 0.15) this.burst(this.myX, this.myY, '#cfefff', 1, 40); } else { this.smx = mx; this.smy = my; }
         const len = Math.hypot(mx, my);
         if (len > 0.01) {
           if (len > 1) { mx /= len; my /= len; }
@@ -608,6 +623,19 @@
         const cdl = Math.ceil((this.dashCd - performance.now()) / 1000);
         db2.textContent = cdl > 0 ? '💨 ' + cdl : '💨';
         db2.style.opacity = cdl > 0 ? '0.45' : '1';
+      }
+
+      if (this.myAlive) {
+        const inLava = (this.hazards || []).some((h) => h.type === 'lava' && Math.hypot(this.myX - h.x, this.myY - h.y) < h.r);
+        if (inLava && performance.now() > this.protectedUntil) {
+          if (!this.wasLava) { this.wasLava = true; this.onFeed('🌋 حمم! اخرج بسرعة'); }
+          this.lavaAcc = (this.lavaAcc || 0) + dt;
+          if (this.lavaAcc >= 0.4) {
+            this.lavaAcc -= 0.4; this.myHp -= 5; this.onHud(this.myHp); this.writeSelf(true);
+            this.burst(this.myX, this.myY, '#ff6b35', 8, 200); this.hitFlashUntil = performance.now() + 150;
+            if (this.myHp <= 0) { this.burst(this.myX, this.myY, '#ffd32a', 30, 320); this.die('lava'); }
+          }
+        } else if (!inLava) { this.wasLava = false; }
       }
 
       // منطقة السيطرة: نقطة كل ثانية وانت جواها
@@ -889,6 +917,19 @@
       ctx.lineWidth = 4;
       ctx.strokeRect(0, 0, WORLD, WORLD);
 
+      for (const h of (this.hazards || [])) {
+        const tt = performance.now() / 1000;
+        const gr = ctx.createRadialGradient(h.x, h.y, 10, h.x, h.y, h.r);
+        if (h.type === 'lava') {
+          const pl = 0.75 + 0.25 * Math.sin(tt * 3 + h.x);
+          gr.addColorStop(0, 'rgba(255,210,60,' + pl + ')'); gr.addColorStop(0.55, 'rgba(255,90,30,' + (0.8 * pl) + ')'); gr.addColorStop(1, 'rgba(120,10,0,0.25)');
+        } else {
+          gr.addColorStop(0, 'rgba(235,250,255,0.55)'); gr.addColorStop(0.7, 'rgba(150,220,255,0.35)'); gr.addColorStop(1, 'rgba(150,220,255,0.12)');
+        }
+        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(h.x, h.y, h.r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = h.type === 'lava' ? 'rgba(255,120,40,0.8)' : 'rgba(220,245,255,0.7)'; ctx.lineWidth = 3; ctx.stroke();
+      }
+
       // الحواجز
       for (const o of this.obstacles) {
         ctx.fillStyle = this.theme.ob;
@@ -1121,6 +1162,7 @@
       c.clearRect(0, 0, S, S);
       c.fillStyle = 'rgba(255,255,255,0.18)';
       for (const o of this.obstacles) c.fillRect(o.x * sc, o.y * sc, Math.max(2, o.w * sc), Math.max(2, o.h * sc));
+      for (const h of (this.hazards || [])) { c.fillStyle = h.type === 'lava' ? 'rgba(255,90,30,0.65)' : 'rgba(160,225,255,0.4)'; c.beginPath(); c.arc(h.x * sc, h.y * sc, h.r * sc, 0, Math.PI * 2); c.fill(); }
       const zm = this.zoneInfo();
       if (zm) { c.strokeStyle = '#ffd32a'; c.lineWidth = 2; c.beginPath(); c.arc(zm.x * sc, zm.y * sc, zm.r * sc, 0, Math.PI * 2); c.stroke(); }
       c.fillStyle = '#2ed573';
