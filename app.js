@@ -8,7 +8,7 @@
   const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
   const $ = (id) => document.getElementById(id);
-  const screens = ['loading', 'profile', 'home', 'lobby', 'game', 'results', 'leaderboard', 'friends', 'how'];
+  const screens = ['loading', 'profile', 'home', 'lobby', 'game', 'results', 'leaderboard', 'friends', 'how', 'rooms'];
 
   let db = null, auth = null, uid = null;
   let profile = null;       // {name, avatar}
@@ -104,6 +104,9 @@
     };
     $('input-room-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('btn-join').click(); });
     $('btn-leaderboard').onclick = () => { showLeaderboard('wins'); };
+    $('btn-rooms').onclick = showRooms;
+    $('btn-rooms-refresh').onclick = showRooms;
+    $('btn-back-from-rooms').onclick = () => show('home');
     $('btn-friends').onclick = () => { showFriends(); };
     $('btn-how').onclick = () => show('how');
     $('btn-sound').onclick = toggleSound;
@@ -120,6 +123,9 @@
 
     // اللعبة
     $('btn-leave-game').onclick = () => { endGameToLobby(true); };
+    document.querySelectorAll('.emote').forEach((b) => {
+      b.onclick = () => { if (window.ArenaGame && ArenaGame.running) ArenaGame.sendEmote(b.textContent); };
+    });
 
     // النتائج
     $('btn-back-lobby').onclick = () => backToLobby();
@@ -558,6 +564,48 @@
     if (leave) {
       // خلي الهوست يشوف إني خرجت عادي — بس ارجع للوبي لو لسه
       show('lobby');
+    }
+  }
+
+  // ============ الغرف العامة ============
+  async function showRooms() {
+    show('rooms');
+    const list = $('rooms-list');
+    list.innerHTML = '<p class="subtitle">بجيب الغرف…</p>';
+    try {
+      const rows = [];
+      for (let i = 1; i <= 6; i++) {
+        const code = 'PUB' + i;
+        const meta = (await db.ref('rooms/' + code + '/meta').once('value')).val();
+        const players = (await db.ref('rooms/' + code + '/players').once('value')).numChildren();
+        rows.push({ code, meta, players });
+      }
+      list.innerHTML = '';
+      rows.forEach((r) => {
+        const d = document.createElement('div');
+        d.className = 'room-row';
+        let stateTxt, stateCls;
+        if (!r.meta) { stateTxt = 'فاضية — كون أول واحد!'; stateCls = 'st-free'; }
+        else if (r.meta.state === 'playing') { stateTxt = '⚔️ معركة شغالة (ممكن تدخل)'; stateCls = 'st-playing'; }
+        else if (r.players > 0) { stateTxt = '⏳ في الانتظار'; stateCls = 'st-lobby'; }
+        else { stateTxt = 'فاضية'; stateCls = 'st-free'; }
+        const full = r.players >= MAX_PLAYERS;
+        d.innerHTML = `<span class="room-code">${r.code}</span>
+          <span class="room-players">👥 ${r.players}/${MAX_PLAYERS}</span>
+          <span class="room-state ${stateCls}">${stateTxt}</span>
+          <button class="btn-mini room-join" data-code="${r.code}" ${full ? 'disabled' : ''}>${full ? 'مليانة' : 'انضم ⚡'}</button>`;
+        list.appendChild(d);
+      });
+      list.querySelectorAll('.room-join').forEach((b) => {
+        b.onclick = () => {
+          if (b.disabled) return;
+          const r = rows.find((x) => x.code === b.dataset.code);
+          if (r && !r.meta) createRoomWithCode(b.dataset.code);
+          else joinRoom(b.dataset.code);
+        };
+      });
+    } catch (e) {
+      list.innerHTML = '<p class="subtitle">حصل خطأ في جلب الغرف — جرب تحديث</p>';
     }
   }
 
