@@ -951,10 +951,11 @@
           if (hd < hz.r) { bt.hp -= 12 * dt; if (Math.random() < 0.15) this.burst(bt.x, bt.y, '#ff6b35', 2, 100); if (bt.hp <= 0) { bt.alive = false; bt.respawnAt = performance.now() + 3000; this.burst(bt.x, bt.y, '#ffd32a', 28, 300); this.onFeed('🌋 الحمم قضت على ' + bt.name); break; } }
         }
         if (!bt.alive) continue;
+        if (bt.boss8 && !bt.enraged && bt.hp < bt.max / 2) { bt.enraged = true; this.onFeed('🔥 سيد الساحة اتجنن! هجماته بقت أسرع'); this.modBanner = { text: '🔥 الغضب!', until: nowB + 2600 }; this.shakeUntil = Math.max(this.shakeUntil, nowB + 500); Sfx.horn(); }
         if ((bt.boss7 || bt.boss8) && this.myAlive) {
           this.strikes = this.strikes || [];
           if (nowB >= bt.nextStrike) {
-            bt.nextStrike = nowB + 2400;
+            bt.nextStrike = nowB + (bt.boss8 && bt.hp < bt.max / 2 ? 1500 : 2400);
             for (let m = 0; m < 4; m++) { const sa = Math.random() * 6.283, sd = m === 0 ? 0 : 80 + Math.random() * 260; this.strikes.push({ x: clamp(this.myX + Math.cos(sa) * sd, 80, WORLD - 80), y: clamp(this.myY + Math.sin(sa) * sd, 80, WORLD - 80), r: 85, at: nowB + 1200 }); }
             Sfx.horn();
           }
@@ -970,7 +971,7 @@
           this.strikes = this.strikes.filter((k) => nowB < k.at + 400);
         }
         if ((bt.boss6 || bt.boss8) && this.myAlive && nowB >= bt.nextSpiral) {
-          bt.nextSpiral = nowB + 2600;
+          bt.nextSpiral = nowB + (bt.boss8 && bt.hp < bt.max / 2 ? 1500 : 2600);
           for (let arm = 0; arm < 3; arm++) for (let q = 0; q < 6; q++) { const a4 = (arm / 3) * Math.PI * 2 + q * 0.16 + nowB / 900; this.bullets.push({ id: bt.id + '_s' + Math.floor(nowB) + '_' + arm + q, uid: bt.id, x: bt.x + Math.cos(a4) * 30, y: bt.y + Math.sin(a4) * 30, dx: Math.cos(a4), dy: Math.sin(a4), age: -q * 0.09, life: 1.6 }); }
           this.rings.push({ x: bt.x, y: bt.y, age: 0, life: 0.5, R: 90 }); this.burst(bt.x, bt.y, '#2ed573', 16, 300); Sfx.boom();
         }
