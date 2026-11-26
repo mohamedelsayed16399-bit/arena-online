@@ -449,7 +449,7 @@
     hideUpgrades() { const el = document.getElementById('upgrade-picker'); if (el) el.style.display = 'none'; },
 
     spawnWave(nowB) {
-      const wv = this.bossRush ? [1, 10, 15, 20, 25, 30][(this.wave - 1) % 6] : this.wave, sc = this.bossRush ? 1 + 0.3 * Math.floor((this.wave - 1) / 6) : 1;
+      const wv = this.bossRush ? [1, 10, 15, 20, 25, 30, 35][(this.wave - 1) % 7] : this.wave, sc = this.bossRush ? 1 + 0.3 * Math.floor((this.wave - 1) / 7) : 1;
       const MK = Object.keys(MODS);
       this.mod = this.wave >= 2 && !this.bossRush && this.wave % 5 !== 0 && Math.random() < 0.65 ? MK[Math.floor(Math.random() * MK.length)] : '';
       if (this.mod) { this.onFeed('🎲 تعديل الموجة: ' + MODS[this.mod].t); this.modBanner = { text: MODS[this.mod].t, until: performance.now() + 2600 }; }
@@ -459,9 +459,9 @@
       for (let k = 0; k < 6; k++) { const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 131 + 7)); this.barrels.push({ x: p.x, y: p.y, hp: 2, dead: false }); }
       if (this.bossRush || this.wave % 5 === 0) {
         const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + 999));
-        this.bots.push({ id: 'bot99', name: wv >= 30 ? '🐉 زعيم الهيدرا' : wv >= 25 ? '❄️ زعيم الجليد' : wv >= 20 ? '☄️ زعيم النيازك' : wv >= 15 ? '🌀 زعيم الشبح' : wv >= 10 ? '💀 زعيم الانفجار' : '👑 الزعيم', boss: true, boss2: wv >= 10 && wv < 15, boss3: wv >= 15 && wv < 20, boss4: wv >= 20 && wv < 25, boss5: wv >= 25 && wv < 30, boss6: wv >= 30, nextSpiral: nowB + 2500, nextIce: nowB + 3000, nextCharge: nowB + 5000, chargeAt: 0, chargeUntil: 0, nextMet: nowB + 3000, nextTp: nowB + 4500, max: wv >= 30 ? 700 : wv >= 25 ? 1000 : wv >= 20 ? 800 : wv >= 15 ? 600 : wv >= 10 ? 450 : 300, nextBurst: nowB + 3500, x: p.x, y: p.y, hp: wv >= 30 ? 700 : wv >= 25 ? 1000 : wv >= 20 ? 800 : wv >= 15 ? 600 : wv >= 10 ? 450 : 300, alive: true, angle: 0, lastFire: nowB + 1500, respawnAt: 0, phase: 0, color: 1 });
+        this.bots.push({ id: 'bot99', name: wv >= 35 ? '⚡ زعيم البرق' : wv >= 30 ? '🐉 زعيم الهيدرا' : wv >= 25 ? '❄️ زعيم الجليد' : wv >= 20 ? '☄️ زعيم النيازك' : wv >= 15 ? '🌀 زعيم الشبح' : wv >= 10 ? '💀 زعيم الانفجار' : '👑 الزعيم', boss: true, boss2: wv >= 10 && wv < 15, boss3: wv >= 15 && wv < 20, boss4: wv >= 20 && wv < 25, boss5: wv >= 25 && wv < 30, boss6: wv >= 30 && wv < 35, boss7: wv >= 35, nextStrike: nowB + 3000, nextSpiral: nowB + 2500, nextIce: nowB + 3000, nextCharge: nowB + 5000, chargeAt: 0, chargeUntil: 0, nextMet: nowB + 3000, nextTp: nowB + 4500, max: wv >= 35 ? 1200 : wv >= 30 ? 700 : wv >= 25 ? 1000 : wv >= 20 ? 800 : wv >= 15 ? 600 : wv >= 10 ? 450 : 300, nextBurst: nowB + 3500, x: p.x, y: p.y, hp: wv >= 35 ? 1200 : wv >= 30 ? 700 : wv >= 25 ? 1000 : wv >= 20 ? 800 : wv >= 15 ? 600 : wv >= 10 ? 450 : 300, alive: true, angle: 0, lastFire: nowB + 1500, respawnAt: 0, phase: 0, color: 1 });
         if (sc > 1) { const bb = this.bots[this.bots.length - 1]; bb.hp = Math.round(bb.hp * sc); bb.max = bb.hp; }
-        this.onFeed(wv >= 30 ? '🐉 زعيم الهيدرا! لما يموت بيتحول لراسين — خلّص عليهم' : wv >= 25 ? '❄️ زعيم الجليد! برك تجمّد وهجوم اندفاعي — ابعد عن الخط الأحمر!' : wv >= 20 ? '☄️ زعيم النيازك! بيمطر نيازك — اتحرك!' : wv >= 15 ? '🌀 زعيم الشبح! بيتنقل وبيستدعي أتباع' : wv >= 10 ? '💀 زعيم الانفجار! دايرة طلقات' : '👑 زعيم ظهر! ٣٠٠ صحة وبيضرب ٣ طلقات'); Sfx.horn();
+        this.onFeed(wv >= 35 ? '⚡ زعيم البرق! بيعلّم أماكن وبعدين الصاعقة بتضرب — اتحرك أول ما تشوف الدايرة!' : wv >= 30 ? '🐉 زعيم الهيدرا! لما يموت بيتحول لراسين — خلّص عليهم' : wv >= 25 ? '❄️ زعيم الجليد! برك تجمّد وهجوم اندفاعي — ابعد عن الخط الأحمر!' : wv >= 20 ? '☄️ زعيم النيازك! بيمطر نيازك — اتحرك!' : wv >= 15 ? '🌀 زعيم الشبح! بيتنقل وبيستدعي أتباع' : wv >= 10 ? '💀 زعيم الانفجار! دايرة طلقات' : '👑 زعيم ظهر! ٣٠٠ صحة وبيضرب ٣ طلقات'); Sfx.horn();
       }
       for (let k = 0; k < n; k++) {
         const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 77));
@@ -951,6 +951,24 @@
           if (hd < hz.r) { bt.hp -= 12 * dt; if (Math.random() < 0.15) this.burst(bt.x, bt.y, '#ff6b35', 2, 100); if (bt.hp <= 0) { bt.alive = false; bt.respawnAt = performance.now() + 3000; this.burst(bt.x, bt.y, '#ffd32a', 28, 300); this.onFeed('🌋 الحمم قضت على ' + bt.name); break; } }
         }
         if (!bt.alive) continue;
+        if (bt.boss7 && this.myAlive) {
+          this.strikes = this.strikes || [];
+          if (nowB >= bt.nextStrike) {
+            bt.nextStrike = nowB + 2400;
+            for (let m = 0; m < 4; m++) { const sa = Math.random() * 6.283, sd = m === 0 ? 0 : 80 + Math.random() * 260; this.strikes.push({ x: clamp(this.myX + Math.cos(sa) * sd, 80, WORLD - 80), y: clamp(this.myY + Math.sin(sa) * sd, 80, WORLD - 80), r: 85, at: nowB + 1200 }); }
+            Sfx.horn();
+          }
+          for (const k of this.strikes) {
+            if (!k.done && nowB >= k.at) {
+              k.done = true; k.flash = nowB; Sfx.boom(); this.burst(k.x, k.y, '#fff176', 18, 360); this.shakeUntil = Math.max(this.shakeUntil, nowB + 200);
+              if (this.myAlive && nowB > this.protectedUntil && Math.hypot(this.myX - k.x, this.myY - k.y) < k.r) {
+                if (nowB < this.shieldUntil) this.onFeed('🛡️ الدرع صدّ الصاعقة!');
+                else { this.myHp -= 45; this.onHud(this.myHp); this.writeSelf(true); Sfx.hit(); if (this.myHp <= 0) { this.burst(this.myX, this.myY, '#fff176', 30, 320); this.die('bot99'); } }
+              }
+            }
+          }
+          this.strikes = this.strikes.filter((k) => nowB < k.at + 400);
+        }
         if (bt.boss6 && this.myAlive && nowB >= bt.nextSpiral) {
           bt.nextSpiral = nowB + 2600;
           for (let arm = 0; arm < 3; arm++) for (let q = 0; q < 6; q++) { const a4 = (arm / 3) * Math.PI * 2 + q * 0.16 + nowB / 900; this.bullets.push({ id: bt.id + '_s' + Math.floor(nowB) + '_' + arm + q, uid: bt.id, x: bt.x + Math.cos(a4) * 30, y: bt.y + Math.sin(a4) * 30, dx: Math.cos(a4), dy: Math.sin(a4), age: -q * 0.09, life: 1.6 }); }
@@ -1419,6 +1437,12 @@
         ctx.font = '24px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff';
         ctx.fillText('\u{1F6E2}', br.x, br.y + 1);
       }
+      for (const k of (this.strikes || [])) {
+        const nw = performance.now(); ctx.save();
+        if (!k.done) { const pr = 1 - (k.at - nw) / 1200; ctx.globalAlpha = 0.25 + 0.3 * Math.sin(nw / 60) ** 2; ctx.fillStyle = '#fff176'; ctx.beginPath(); ctx.arc(k.x, k.y, k.r * (0.4 + 0.6 * pr), 0, 6.283); ctx.fill(); ctx.globalAlpha = 0.95; ctx.strokeStyle = '#ffd32a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(k.x, k.y, k.r, 0, 6.283); ctx.stroke(); ctx.font = '26px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('⚡', k.x, k.y); }
+        else { ctx.globalAlpha = Math.max(0, 1 - (nw - k.flash) / 350); ctx.fillStyle = '#ffffff'; ctx.fillRect(k.x - 14, k.y - 700, 28, 700); ctx.beginPath(); ctx.arc(k.x, k.y, k.r, 0, 6.283); ctx.fill(); }
+        ctx.restore();
+      }
       for (const ip of (this.icePools || [])) {
         const nw = performance.now(); if (nw >= ip.until) continue;
         ctx.save(); ctx.globalAlpha = Math.min(0.45, (ip.until - nw) / 1000 * 0.45); ctx.fillStyle = '#7efff5'; ctx.beginPath(); ctx.arc(ip.x, ip.y, ip.r, 0, 6.283); ctx.fill();
@@ -1536,10 +1560,10 @@
       for (const bt of this.bots) drawPlayer(bt.id, { name: bt.name, avatar: bt.boss ? '👹' : (bt.av || '🤖'), color: bt.color, x: bt.x, y: bt.y, alive: bt.alive, hp: Math.min(MAX_HP, bt.hp * MAX_HP / (bt.max || MAX_HP)), angle: bt.angle }, false);
       for (const bt of this.bots) {
         if (!bt.boss || !bt.alive) continue;
-        const bc = bt.boss6 ? '#2ed573' : bt.boss5 ? '#7efff5' : bt.boss4 ? '#ff6b35' : bt.boss3 ? '#18dcff' : bt.boss2 ? '#a55eea' : '#ff4757'; ctx.strokeStyle = bc; ctx.lineWidth = 5; ctx.shadowColor = bc; ctx.shadowBlur = 16;
+        const bc = bt.boss7 ? '#fff176' : bt.boss6 ? '#2ed573' : bt.boss5 ? '#7efff5' : bt.boss4 ? '#ff6b35' : bt.boss3 ? '#18dcff' : bt.boss2 ? '#a55eea' : '#ff4757'; ctx.strokeStyle = bc; ctx.lineWidth = 5; ctx.shadowColor = bc; ctx.shadowBlur = 16;
         ctx.beginPath(); ctx.arc(bt.x, bt.y, PLAYER_R + 12, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0;
         ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(bt.x - 40, bt.y - PLAYER_R - 28, 80, 8);
-        ctx.fillStyle = bt.boss6 ? '#2ed573' : bt.boss5 ? '#7efff5' : bt.boss4 ? '#ff6b35' : bt.boss3 ? '#18dcff' : bt.boss2 ? '#a55eea' : '#ff4757'; ctx.fillRect(bt.x - 40, bt.y - PLAYER_R - 28, 80 * Math.max(0, bt.hp) / (bt.max || 300), 8);
+        ctx.fillStyle = bt.boss7 ? '#fff176' : bt.boss6 ? '#2ed573' : bt.boss5 ? '#7efff5' : bt.boss4 ? '#ff6b35' : bt.boss3 ? '#18dcff' : bt.boss2 ? '#a55eea' : '#ff4757'; ctx.fillRect(bt.x - 40, bt.y - PLAYER_R - 28, 80 * Math.max(0, bt.hp) / (bt.max || 300), 8);
         ctx.font = '16px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#ffd32a'; ctx.fillText('\u{1F451}', bt.x, bt.y - PLAYER_R - 38);
       }
       for (const uid in this.players) drawPlayer(uid, this.players[uid], false);
