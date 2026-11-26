@@ -480,6 +480,33 @@
     ref.once('value', (s) => ref.set(!s.val()));
   }
 
+  // نظام الخبرة والمستويات (محلي)
+  const XP_NEED = (l) => 80 + 40 * l; // خبرة المستوى الجاي
+  function xpInfo() {
+    let xp = 0; try { xp = +localStorage.getItem('arena_xp') || 0; } catch (e) {}
+    let lvl = 1, rem = xp;
+    while (rem >= XP_NEED(lvl)) { rem -= XP_NEED(lvl); lvl++; }
+    return { xp, lvl, rem, need: XP_NEED(lvl) };
+  }
+  const LVL_TITLES = ['مبتدئ', 'مقاتل', 'محارب', 'قناص', 'قائد', 'بطل', 'أسطورة'];
+  const lvlTitle = (l) => LVL_TITLES[Math.min(LVL_TITLES.length - 1, Math.floor((l - 1) / 3))];
+  function renderLevel() {
+    const el = $('me-lvl'); if (!el) return;
+    const i = xpInfo();
+    el.innerHTML = '⭐ مستوى <b>' + i.lvl + '</b> — ' + lvlTitle(i.lvl) + ' <small>(' + i.rem + '/' + i.need + ')</small><div class="lvl-bar"><i style="width:' + Math.round(100 * i.rem / i.need) + '%"></i></div>';
+  }
+  function awardXp(gain) {
+    const before = xpInfo();
+    try { localStorage.setItem('arena_xp', String(before.xp + gain)); } catch (e) {}
+    const after = xpInfo();
+    let coins = 0;
+    for (let l = before.lvl; l < after.lvl; l++) coins += 20 * l;
+    if (coins) { try { localStorage.setItem('arena_coins', String((+localStorage.getItem('arena_coins') || 0) + coins)); } catch (e) {} }
+    renderLevel();
+    return { before, after, coins };
+  }
+  setTimeout(renderLevel, 300);
+
   function hostStartRound(mode) {
     window._lastMode = mode;
     if (!isHost || !roomCode) return;
@@ -604,6 +631,18 @@
       list.appendChild(d);
     });
     (function () {
+      let xpHtml = '';
+      if (wasPlaying) {
+        const meR = rows.find((r) => r.uid === uid) || { kills: 0, deaths: 0 };
+        const win = rows.length > 1 && rows[0].uid === uid;
+        const gain = 25 + meR.kills * 15 + (win ? 60 : 0) + Math.max(0, (ArenaGame.wave || 1) - 1) * 12 + (meR.deaths === 0 && meR.kills > 0 ? 20 : 0);
+        const r = awardXp(gain);
+        const up = r.after.lvl > r.before.lvl;
+        xpHtml = '<div class="xp-box' + (up ? ' up' : '') + '">⭐ +' + gain + ' خبرة — مستوى ' + r.after.lvl + ' (' + lvlTitle(r.after.lvl) + ')' +
+          '<div class="lvl-bar"><i style="width:' + Math.round(100 * r.after.rem / r.after.need) + '%"></i></div>' +
+          (up ? '<div>🎉 ترقيت لمستوى ' + r.after.lvl + '! +🪙 ' + r.coins + '</div>' : '') + '</div>';
+      }
+      window._xpHtml = xpHtml;
       const rs = ArenaGame.rs || {};
       const acc = rs.shots ? Math.round(100 * Math.min(rs.hits, rs.shots) / rs.shots) : 0;
       const me = rows.find((r) => r.uid === uid) || { kills: 0, deaths: 0 };
@@ -616,7 +655,7 @@
       if (me.kills >= 5) badges.push('☠️ سفّاح');
       if (me.deaths === 0 && me.kills > 0) badges.push('🛡️ ما اتقتلش');
       if (ArenaGame.wave > 1) badges.push('🌊 موجة ' + ArenaGame.wave);
-      $('results-awards').innerHTML = '<h3>📊 أداءك في الجولة</h3><div class="aw-grid">' +
+      $('results-awards').innerHTML = window._xpHtml + '<h3>📊 أداءك في الجولة</h3><div class="aw-grid">' +
         '<div><b>' + (rs.shots || 0) + '</b><small>طلقات</small></div>' +
         '<div><b>' + acc + '%</b><small>دقة</small></div>' +
         '<div><b>' + (rs.gren || 0) + '</b><small>قنابل</small></div>' +
