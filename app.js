@@ -201,6 +201,7 @@
     $('btn-start-blitz').onclick = () => hostStartRound('blitz');
     $('btn-start-zone').onclick = () => hostStartRound('zone');
     $('btn-start-team').onclick = () => hostStartRound('team');
+    $('btn-start-coop').onclick = () => hostStartRound('coop');
     $('btn-start-gems').onclick = () => hostStartRound('gems');
     $('btn-start-storm').onclick = () => hostStartRound('storm');
     $('btn-send-chat').onclick = sendChat;
@@ -467,6 +468,7 @@
     $('btn-start-blitz').classList.toggle('hidden', !isHost);
     $('btn-start-zone').classList.toggle('hidden', !isHost);
     $('btn-start-team').classList.toggle('hidden', !isHost);
+    $('btn-start-coop').classList.toggle('hidden', !isHost);
     $('btn-start-gems').classList.toggle('hidden', !isHost);
     $('btn-start-storm').classList.toggle('hidden', !isHost);
     $('lobby-hint').textContent = isHost
@@ -551,7 +553,7 @@
   function startGame(endsAt, mode) {
     if ($('screen-game').classList.contains('active') && window.ArenaGame.running) return;
     show('game');
-    $('hud-mode').textContent = mode === 'team' ? '🔴🔵 فريق ضد فريق' : mode === 'blitz' ? '⚡ بليتز' : mode === 'zone' ? '🎯 السيطرة' : mode === 'gems' ? '💎 صيد الجواهر' : mode === 'storm' ? '🌪️ العاصفة' : '';
+    $('hud-mode').textContent = mode === 'coop' ? '🤝 تعاون' : mode === 'team' ? '🔴🔵 فريق ضد فريق' : mode === 'blitz' ? '⚡ بليتز' : mode === 'zone' ? '🎯 السيطرة' : mode === 'gems' ? '💎 صيد الجواهر' : mode === 'storm' ? '🌪️ العاصفة' : '';
     ArenaGame.start({
       db, roomCode,
       me: { uid, name: profile.name, avatar: profile.avatar, color: myColor, joinedAt: myJoinedAt },
@@ -618,6 +620,7 @@
     if (ArenaGame.mode === 'team') { const tk = [0, 0]; rows.forEach((r) => { const t = ArenaGame.teamOf(r.uid); if (t >= 0) tk[t] += r.kills; }); teamLine = '🔴 ' + tk[0] + ' × ' + tk[1] + ' 🔵'; window._teamWin = tk[0] === tk[1] ? 'تعادل' : (tk[0] > tk[1] ? '🔴 الفريق الأحمر' : '🔵 الفريق الأزرق'); }
     $('results-title').textContent = rows[0].uid === uid ? '🏆 كسبت المعركة!' : `🏆 الفائز: ${rows[0].name}`;
     if (ArenaGame.mode === 'team') $('results-title').textContent = '🏆 ' + window._teamWin + ' | ' + teamLine;
+    if (ArenaGame.mode === 'coop') { const tkk = rows.reduce((a, r) => a + (r.kills || 0), 0); $('results-title').textContent = '🤝 الفريق كله: ' + tkk + ' قتلة | موجتك ' + (ArenaGame.wave || 1); }
     const list = $('results-list');
     list.innerHTML = '';
     const medals = ['🥇', '🥈', '🥉'];
