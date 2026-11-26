@@ -49,7 +49,7 @@
     respawnAt: 0,
     pickups: {}, lastPickupSpawn: 0,
     muzzleUntil: 0, hitFlashUntil: 0, lastHpShown: null,
-    speedUntil: 0, shieldUntil: 0, protectedUntil: 0, weaponUntil: 0, weapon: '', fx: [], dashUntil: 0, dashCd: 0, barrels: [], wave: 1, waveAt: 0, waveBanner: null, gren: [], grenCd: 0, rings: [], gcount: 0, dashX: 0, dashY: 0, mode: 'classic', zpts: 0, zoneAcc: 0, zoneCache: null, bots: [], botCheckAt: 0, botAnnounced: false, shakeUntil: 0, specIdx: 0, lastBurst: 0,
+    speedUntil: 0, shieldUntil: 0, protectedUntil: 0, weaponUntil: 0, weapon: '', fx: [], dashUntil: 0, dashCd: 0, rs: { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }, barrels: [], wave: 1, waveAt: 0, waveBanner: null, gren: [], grenCd: 0, rings: [], gcount: 0, dashX: 0, dashY: 0, mode: 'classic', zpts: 0, zoneAcc: 0, zoneCache: null, bots: [], botCheckAt: 0, botAnnounced: false, shakeUntil: 0, specIdx: 0, lastBurst: 0,
     rafId: null, lastTs: 0,
     onRoundEnd: null, onFeed: null, onHud: null,
     seed: 1,
@@ -78,7 +78,7 @@
       this.myX = p.x; this.myY = p.y; this.myAngle = 0;
       this.myHp = MAX_HP; this.myAlive = true;
       this.lastHpShown = MAX_HP; this.muzzleUntil = 0; this.hitFlashUntil = 0;
-      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.barrels = []; this.wave = 1; this.waveAt = 0; this.waveBanner = null; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.specIdx = 0;
+      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.rs = { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }; this.barrels = []; this.wave = 1; this.waveAt = 0; this.waveBanner = null; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.specIdx = 0;
       this.protectedUntil = performance.now() + 2000; // حماية بداية الجولة
       this.writeSelf(true);
       this.onFeed('🗺️ ساحة ' + this.theme.name);
@@ -201,6 +201,7 @@
         // شيل الطلقة اللي أصابت
         const i = this.bullets.findIndex(b => b.id === e.bulletId);
         if (i >= 0) this.bullets.splice(i, 1);
+        if (e.by === this.me.uid) this.rs.hits++;
         if (e.target === this.me.uid) Sfx.hit();
         else if (this.players[e.target] && this.players[e.target].x !== undefined) this.burst(this.players[e.target].x, this.players[e.target].y, '#ff6b81', 8, 180);
       } else if (e.t === 'gren') {
@@ -220,6 +221,7 @@
         this.streaks[e.by] = (this.streaks[e.by] || 0) + 1;
         const sk = this.streaks[e.by];
         if (e.by === this.me.uid) { this.ach('kill'); this.ach('streak', sk); }
+        if (e.by === this.me.uid) this.rs.streak = Math.max(this.rs.streak, sk);
         if (sk >= 3) this.onFeed(`🔥 ${killer} في سلسلة ${sk} قتلات!`);
         Sfx.kill();
         if (e.target === this.me.uid && this.myAlive) {
@@ -269,7 +271,7 @@
       this.dashX = mx / l; this.dashY = my / l;
       this.dashUntil = now + 170; this.dashCd = now + 2500;
       this.burst(this.myX, this.myY, '#7bdff2', 16, 220);
-      this.ach('dash');
+      this.ach('dash'); this.rs.dash++;
     },
 
     throwGrenade() {
@@ -280,7 +282,7 @@
       const id = this.me.uid.slice(0, 4) + '_g' + Math.floor(now);
       this.addGrenade({ id, uid: this.me.uid, x: this.myX, y: this.myY, tx, ty });
       this.gcount = (this.gcount || 0) + 1;
-      this.ach('gren');
+      this.ach('gren'); this.rs.gren++;
       this.db.ref('rooms/' + this.roomCode + '/events').push({ t: 'gren', id, uid: this.me.uid, x: Math.round(this.myX), y: Math.round(this.myY), tx: Math.round(tx), ty: Math.round(ty), ts: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
     },
 
@@ -394,7 +396,7 @@
       const rapid = this.weapon === 'rapid' && now < this.weaponUntil;
       const triple = this.weapon === 'triple' && now < this.weaponUntil;
       if (now - this.lastFire < (rapid ? 130 : FIRE_COOLDOWN) || !this.myAlive) return;
-      this.lastFire = now;
+      this.lastFire = now; this.rs.shots++;
       const angs = triple ? [-0.22, 0, 0.22] : [0];
       angs.forEach((off, k) => {
         const a = this.myAngle + off;
@@ -687,7 +689,7 @@
         if (!dead && b.uid === this.me.uid) {
           for (const bt of this.bots) {
             if (bt.alive && Math.hypot(b.x - bt.x, b.y - bt.y) < PLAYER_R + 4) {
-              dead = true;
+              dead = true; this.rs.hits++;
               bt.hp -= BULLET_DMG;
               this.burst(bt.x, bt.y, '#ff6b81', 8, 180);
               if (bt.hp <= 0) {
@@ -798,7 +800,7 @@
             this.shieldUntil = performance.now() + 5000;
             this.onFeed('🛡️ درع ٥ ثواني!');
           }
-          this.ach('pickup');
+          this.ach('pickup'); this.rs.pick++;
           this.db.ref('rooms/' + this.roomCode + '/pickups/' + pid).remove().catch(() => {});
           this.writeSelf(true);
           break;
