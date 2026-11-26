@@ -129,6 +129,7 @@
 
     // النتائج
     $('btn-back-lobby').onclick = () => backToLobby();
+    $('btn-rematch').onclick = () => { backToLobby(); if (isHost) setTimeout(() => hostStartRound(window._lastMode || 'classic'), 2500); };
     $('btn-back-home').onclick = () => { leaveRoom(); };
 
     // رجوع
@@ -383,6 +384,7 @@
   }
 
   function hostStartRound(mode) {
+    window._lastMode = mode;
     if (!isHost || !roomCode) return;
     const secs = mode === 'blitz' ? 60 : ROUND_SECONDS;
     const endsAt = Date.now() + secs * 1000 + 4000; // +٤ ثواني هامش سيرفر
@@ -484,6 +486,9 @@
       }
     }
 
+    if (wasPlaying && rows.length > 1 && rows[0].uid === uid && roomCode) {
+      db.ref('rooms/' + roomCode + '/chat').push({ uid, name: '🏆', text: profile.name + ' كسب المعركة بـ ' + rows[0].kills + ' قتلة!', ts: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
+    }
     $('results-title').textContent = rows[0].uid === uid ? '🏆 كسبت المعركة!' : `🏆 الفائز: ${rows[0].name}`;
     const list = $('results-list');
     list.innerHTML = '';
