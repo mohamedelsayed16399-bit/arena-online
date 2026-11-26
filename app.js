@@ -14,7 +14,7 @@
   let profile = null;       // {name, avatar}
   let roomCode = null, roomListeners = [];
   let isHost = false, roomSeed = 1;
-  let myColor = 0;
+  let myColor = 0, myJoinedAt = 0;
   let chatLastKey = null;
 
   function show(name) {
@@ -217,7 +217,16 @@
         const meta = snap.val();
         if (!meta) { await createRoomWithCode(code); return; }
         const players = (await db.ref('rooms/' + code + '/players').once('value')).numChildren();
-        if (meta.state === 'lobby' && players < MAX_PLAYERS) { joinRoom(code); return; }
+        if (players >= MAX_PLAYERS) continue;
+        if (meta.state === 'lobby' || meta.state === 'ended') { joinRoom(code); return; }
+        if (meta.state === 'playing') {
+          const st = (await db.ref('rooms/' + code + '/state').once('value')).val() || {};
+          if (st.endsAt && Date.now() < st.endsAt) { joinRoom(code); return; } // دخول متأخر
+          if (!st.endsAt || Date.now() > st.endsAt + 90000) { // غرفة عالقة — نظّفها وادخل
+            await db.ref('rooms/' + code + '/meta').update({ state: 'lobby' }).catch(() => {});
+            joinRoom(code); return;
+          }
+        }
       }
       toast('كل الغرف مليانة — اعمل غرفة خاصة');
     })().catch(() => toast('حصل خطأ، جرب تاني'));
@@ -242,7 +251,14 @@
     try {
       const meta = (await db.ref('rooms/' + code + '/meta').once('value')).val();
       if (!meta) { toast('مفيش غرفة بالكود ده'); return; }
-      if (meta.state === 'playing') { toast('المعركة شغالة — استنى الجولة الجاية'); return; }
+      if (meta.state === 'playing') {
+        const st = (await db.ref('rooms/' + code + '/state').once('value')).val() || {};
+        if (st.endsAt && Date.now() < st.endsAt) {
+          toast('المعركة شغالة — داخل وسط الجولة! ⚔️');
+        } else if (!st.endsAt || Date.now() > st.endsAt + 90000) {
+          await db.ref('rooms/' + code + '/meta').update({ state: 'lobby' }).catch(() => {});
+        } else { toast('الجولة بتخلص حالًا — ثانية واحدة'); return; }
+      }
       const players = (await db.ref('rooms/' + code + '/players').once('value')).numChildren();
       if (players >= MAX_PLAYERS) { toast('الغرفة مليانة (' + MAX_PLAYERS + ' لاعيبة)'); return; }
       roomCode = code;
@@ -338,7 +354,7 @@
         <span class="p-name">${esc(p.name)}${hostTag}</span>
         <span class="p-status ${p.ready ? 'ready' : 'notready'}">${p.ready ? '✅ جاهز' : 'مستني…'}</span>`;
       box.appendChild(row);
-      if (p.u === uid) meReady = !!p.ready;
+      if (p.u === uid) { meReady = !!p.ready; myJoinedAt = p.joinedAt || 0; }
     });
     $('btn-ready').textContent = meReady ? '⏳ مستني الباقي' : '✋ جاهز';
     $('btn-start').classList.toggle('hidden', !isHost);
@@ -396,7 +412,7 @@
     show('game');
     ArenaGame.start({
       db, roomCode,
-      me: { uid, name: profile.name, avatar: profile.avatar, color: myColor },
+      me: { uid, name: profile.name, avatar: profile.avatar, color: myColor, joinedAt: myJoinedAt },
       host: isHost,
       seed: roomSeed,
       endsAt,
@@ -421,8 +437,8 @@
     if (ArenaGame.running) ArenaGame.stop();
     if (!rows.length) { show('lobby'); return; }
 
-    // سجّل في المتصدرين (مرة واحدة لكل جولة)
-    if (wasPlaying) {
+    // سجّل في المتصدرين (مرة واحدة لكل جولة، وبس لو كان فيه لاعبين فعلًا)
+    if (wasPlaying && rows.length >= 2) {
       const winner = rows[0];
       if (winner.uid === uid) {
         db.ref('leaderboard/' + uid).transaction((cur) => {
@@ -458,6 +474,7 @@
       list.appendChild(d);
     });
     show('results');
+    spawnConfetti();
 
     // الهوست يرجع الغرفة للوبي بعد شوية
     if (isHost) {
@@ -483,6 +500,21 @@
   }
 
   let lastResults = null;
+
+  function spawnConfetti() {
+    const scr = $('screen-results');
+    const colors = ['#ff4757', '#2ed573', '#1e90ff', '#ffa502', '#eccc68', '#ff6b81'];
+    for (let i = 0; i < 36; i++) {
+      const c = document.createElement('div');
+      c.className = 'confetti';
+      c.style.left = Math.random() * 100 + '%';
+      c.style.background = colors[i % colors.length];
+      c.style.animationDuration = (1.6 + Math.random() * 1.8) + 's';
+      c.style.animationDelay = (Math.random() * 0.8) + 's';
+      scr.appendChild(c);
+      setTimeout(() => { if (c.parentNode) c.parentNode.removeChild(c); }, 4500);
+    }
+  }
 
   function backToLobby() {
     if (ArenaGame.running) ArenaGame.stop();
