@@ -170,3 +170,8 @@ input:focus { border-color:var(--primary); }
 .up-card { position:relative; width:112px; min-height:112px; background:linear-gradient(160deg,#2b2f77,#1b1d4a); border:2px solid var(--gold); border-radius:14px; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:8px 6px; font-family:inherit; cursor:pointer; box-shadow:0 0 14px rgba(255,200,0,.35); }
 .up-card .up-i { font-size:30px; } .up-card b { font-size:14px; } .up-card small { font-size:11px; opacity:.85; text-align:center; } .up-card em { position:absolute; top:3px; left:7px; font-style:normal; font-size:11px; opacity:.6; }
 @media (max-width:640px){ #upgrade-picker { bottom:150px; } .up-card { width:98px; min-height:100px; } }
+
+.shop-coins { font-size:26px; font-weight:900; color:var(--gold); text-align:center; margin-bottom:10px; }
+.shop-row { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,.08); }
+.shop-row b { flex:1; } .shop-dot { width:22px; height:22px; border-radius:50%; box-shadow:0 0 10px currentColor; }
+.shop-btn { min-width:96px; padding:6px 10px; }
