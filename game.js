@@ -62,7 +62,7 @@
       this.seed = opts.seed || 1;
       this.endsAt = opts.endsAt || 0;
       this.dashUntil = 0; this.dashCd = 0;
-      this.theme = THEMES[Math.abs(Math.floor(this.seed)) % THEMES.length]; this.mode = opts.mode || 'classic'; this.zpts = 0; this.zoneAcc = 0; this.zoneCache = null;
+      this.theme = THEMES[Math.abs(Math.floor(this.seed)) % THEMES.length]; this.mode = opts.mode || 'classic'; this.zpts = 0; this.zoneAcc = 0; this.zoneCache = null; this.gemTaken = {};
       this.onRoundEnd = opts.onRoundEnd; this.onFeed = opts.onFeed || (() => {}); this.onHud = opts.onHud || (() => {});
       this.canvas = document.getElementById('game-canvas');
       this.ctx = this.canvas.getContext('2d');
@@ -452,6 +452,20 @@
       return { x: cx, y: cy, r: R0 + (R1 - R0) * t, t, el };
     },
 
+    gemList() {
+      if (this.mode !== 'gems') return [];
+      const ep = Math.floor(Math.max(0, 90000 - (this.endsAt - this.serverNow())) / 18000);
+      if (!this._gemC || this._gemC.ep !== ep) {
+        const list = [];
+        for (let i = 0; i < 16; i++) {
+          const p = this.freeSpot(mulberry32(((this.seed * 31) + ep * 7001 + i * 977) >>> 0));
+          list.push({ key: ep + '_' + i, x: p.x, y: p.y, gold: i % 5 === 0 });
+        }
+        if (this._gemC) this.onFeed('💎 جواهر جديدة ظهرت في الخريطة!');
+        this._gemC = { ep, list };
+      }
+      return this._gemC.list;
+    },
     zoneInfo() {
       if (this.mode !== 'zone') return null;
       const idx = Math.floor(Math.max(0, this.endsAt - this.serverNow()) / 15000);
@@ -730,6 +744,18 @@
         } else if (!this.inStorm) { this.wasStorm = false; }
       }
 
+      // صيد الجواهر
+      if (this.mode === 'gems' && this.myAlive) {
+        for (const gm of this.gemList()) {
+          if (this.gemTaken[gm.key]) continue;
+          if (Math.hypot(this.myX - gm.x, this.myY - gm.y) < 36) {
+            this.gemTaken[gm.key] = true; this.zpts = (this.zpts || 0) + (gm.gold ? 5 : 1);
+            this.burst(gm.x, gm.y, gm.gold ? '#ffd32a' : '#18dcff', 12, 200); if (Sfx.pick) Sfx.pick();
+            if (gm.gold) this.onFeed('💎 جوهرة دهبية! +٥');
+            this.writeSelf(true);
+          }
+        }
+      }
       // منطقة السيطرة: نقطة كل ثانية وانت جواها
       const zn = this.zoneInfo();
       if (zn && this.myAlive && Math.hypot(this.myX - zn.x, this.myY - zn.y) < zn.r) {
@@ -997,7 +1023,7 @@
       }
       // أضفني أنا
       rows.push({ uid: this.me.uid, name: this.me.name, avatar: this.me.avatar, kills: this.kills || 0, deaths: this.deaths || 0, zpts: this.zpts || 0 });
-      if (this.mode === 'zone') rows.sort((a, b) => b.zpts - a.zpts || b.kills - a.kills);
+      if (this.mode === 'zone' || this.mode === 'gems') rows.sort((a, b) => b.zpts - a.zpts || b.kills - a.kills);
       else rows.sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
       return rows;
     },
@@ -1071,6 +1097,17 @@
         ctx.stroke();
       }
 
+      if (this.mode === 'gems') {
+        const tt = performance.now() / 400;
+        for (const gm of this.gemList()) {
+          if (this.gemTaken[gm.key]) continue;
+          const bob = Math.sin(tt + gm.x) * 3, col = gm.gold ? '#ffd32a' : '#18dcff', r0 = gm.gold ? 15 : 11;
+          ctx.save(); ctx.translate(gm.x, gm.y + bob); ctx.shadowColor = col; ctx.shadowBlur = 18; ctx.fillStyle = col;
+          ctx.beginPath(); ctx.moveTo(0, -r0 - 3); ctx.lineTo(r0, 0); ctx.lineTo(0, r0 + 3); ctx.lineTo(-r0, 0); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.beginPath(); ctx.moveTo(0, -r0 - 3); ctx.lineTo(r0 * 0.5, -2); ctx.lineTo(-r0 * 0.3, -2); ctx.closePath(); ctx.fill();
+          ctx.restore();
+        }
+      }
       // منطقة السيطرة
       const zd = this.zoneInfo();
       if (zd) {
@@ -1264,6 +1301,10 @@
         ctx.fillRect(0, 0, innerWidth, innerHeight);
       }
 
+      if (this.mode === 'gems') {
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold 18px Cairo, sans-serif'; ctx.fillStyle = '#18dcff';
+        ctx.fillText('💎 جواهرك: ' + (this.zpts || 0), innerWidth / 2, innerHeight - 140);
+      }
       if (this.mode === 'zone') {
         const z2 = this.zoneInfo();
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -1305,6 +1346,7 @@
       for (const h of (this.hazards || [])) { c.fillStyle = h.type === 'lava' ? 'rgba(255,90,30,0.65)' : 'rgba(160,225,255,0.4)'; c.beginPath(); c.arc(h.x * sc, h.y * sc, h.r * sc, 0, Math.PI * 2); c.fill(); }
       const sm = this.stormInfo();
       if (sm) { c.strokeStyle = '#ff4757'; c.lineWidth = 2; c.beginPath(); c.arc(sm.x * sc, sm.y * sc, sm.r * sc, 0, Math.PI * 2); c.stroke(); }
+      if (this.mode === 'gems') { c.fillStyle = '#18dcff'; for (const gm of this.gemList()) { if (!this.gemTaken[gm.key]) { c.fillRect(gm.x * sc - 1.5, gm.y * sc - 1.5, 3, 3); } } }
       const zm = this.zoneInfo();
       if (zm) { c.strokeStyle = '#ffd32a'; c.lineWidth = 2; c.beginPath(); c.arc(zm.x * sc, zm.y * sc, zm.r * sc, 0, Math.PI * 2); c.stroke(); }
       c.fillStyle = '#2ed573';
