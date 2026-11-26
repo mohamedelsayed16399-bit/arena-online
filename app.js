@@ -106,6 +106,7 @@
     $('btn-leaderboard').onclick = () => { showLeaderboard('wins'); };
     $('btn-rooms').onclick = showRooms;
     $('btn-stats').onclick = showStats;
+    $('btn-dash').onclick = () => { if (window.ArenaGame && ArenaGame.running) ArenaGame.dash(); };
     const diffNames = { easy: 'سهل', normal: 'عادي', hard: 'صعب' };
     const diffOrder = ['easy', 'normal', 'hard'];
     const curDiff = () => { try { return localStorage.getItem('arena_bot_diff') || 'normal'; } catch (e) { return 'normal'; } };
@@ -503,6 +504,7 @@
     if (wasPlaying && rows.length > 1 && rows[0].uid === uid && roomCode) {
       db.ref('rooms/' + roomCode + '/chat').push({ uid, name: '🏆', text: profile.name + ' كسب المعركة بـ ' + rows[0].kills + ' قتلة!', ts: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
     }
+    if (wasPlaying && rows[0].uid === uid) window.ArenaAch.hit('win');
     $('results-title').textContent = rows[0].uid === uid ? '🏆 كسبت المعركة!' : `🏆 الفائز: ${rows[0].name}`;
     const list = $('results-list');
     list.innerHTML = '';
@@ -629,8 +631,41 @@
   }
 
   // ============ المتصدرين ============
+  const ACH_LIST = [
+    ['kill1', '🎯 أول قتلة'], ['kill10', '🔟 ١٠ قتلات'], ['streak3', '🔥 سلسلة ٣ قتلات'],
+    ['dash10', '💨 عدّاء (١٠ داشات)'], ['zone30', '🏁 سيد المنطقة (٣٠ نقطة)'], ['win1', '🏆 أول فوز'], ['pickup5', '🎁 جامع القدرات (٥)'],
+  ];
+  window.ArenaAch = {
+    load() { try { return JSON.parse(localStorage.getItem('arena_ach') || '{}'); } catch (e) { return {}; } },
+    save(d) { try { localStorage.setItem('arena_ach', JSON.stringify(d)); } catch (e) { /* ignore */ } },
+    unlock(d, id) {
+      d.unlocked = d.unlocked || {};
+      if (d.unlocked[id]) return;
+      d.unlocked[id] = Date.now();
+      const it = ACH_LIST.find((x) => x[0] === id);
+      toast('🏅 إنجاز جديد: ' + (it ? it[1] : id), 3500);
+    },
+    hit(type, val) {
+      const d = this.load(); d.c = d.c || {};
+      if (type === 'kill') { d.c.kills = (d.c.kills || 0) + 1; this.unlock(d, 'kill1'); if (d.c.kills >= 10) this.unlock(d, 'kill10'); }
+      else if (type === 'streak') { if (val >= 3) this.unlock(d, 'streak3'); }
+      else if (type === 'dash') { d.c.dashes = (d.c.dashes || 0) + 1; if (d.c.dashes >= 10) this.unlock(d, 'dash10'); }
+      else if (type === 'zone') { if (val >= 30) this.unlock(d, 'zone30'); }
+      else if (type === 'win') { this.unlock(d, 'win1'); }
+      else if (type === 'pickup') { d.c.pickups = (d.c.pickups || 0) + 1; if (d.c.pickups >= 5) this.unlock(d, 'pickup5'); }
+      this.save(d);
+    },
+  };
+
+  function renderAch() {
+    const d = window.ArenaAch.load(); const u = d.unlocked || {};
+    const n = ACH_LIST.filter((x) => u[x[0]]).length;
+    $('ach-list').innerHTML = '<h3>🏅 الإنجازات (' + n + '/' + ACH_LIST.length + ')</h3>' + ACH_LIST.map((x) => '<div class="ach-item' + (u[x[0]] ? ' on' : '') + '">' + (u[x[0]] ? '✅ ' : '🔒 ') + x[1] + '</div>').join('');
+  }
+
   function showStats() {
     show('stats');
+    renderAch();
     const c = $('stats-card');
     c.innerHTML = '<p class="subtitle">بجيب البيانات…</p>';
     db.ref('leaderboard').once('value', (s) => {
