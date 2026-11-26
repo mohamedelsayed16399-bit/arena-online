@@ -996,7 +996,7 @@
       if (this.bots.length) {
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.font = 'bold 15px Cairo, sans-serif'; ctx.fillStyle = '#7bdff2';
-        ctx.fillText('🌊 موجة ' + this.wave + ' | بوتات: ' + this.bots.filter((q) => q.alive).length, innerWidth / 2, 78);
+        ctx.fillText('🌊 موجة ' + this.wave + ' | بوتات: ' + this.bots.filter((q) => q.alive).length, innerWidth / 2, innerWidth < 641 ? 160 : 78);
         const wb = this.waveBanner;
         if (wb && performance.now() < wb.until) {
           const k = (wb.until - performance.now()) / 2400;
