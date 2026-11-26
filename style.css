@@ -157,7 +157,7 @@ input:focus { border-color:var(--primary); }
 
 .awards { width:100%; max-width:420px; background:var(--card); border-radius:14px; padding:12px 14px; margin:10px 0; }
 .awards h3 { margin:0 0 8px; font-size:15px; text-align:center; }
-.me-lvl { margin:6px auto; max-width:260px; font-size:13px; text-align:center; }
+.me-lvl { margin:8px auto 4px; width:100%; max-width:420px; font-size:13px; text-align:center; }
 .lvl-bar { height:8px; border-radius:6px; background:rgba(255,255,255,.12); overflow:hidden; margin-top:4px; }
 .lvl-bar i { display:block; height:100%; background:linear-gradient(90deg,#18dcff,#a55eea); border-radius:6px; }
 .xp-box { margin:10px 0; padding:10px; border-radius:12px; background:rgba(165,94,234,.15); text-align:center; }
