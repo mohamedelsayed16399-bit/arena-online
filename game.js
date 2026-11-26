@@ -43,7 +43,7 @@
     respawnAt: 0,
     pickups: {}, lastPickupSpawn: 0,
     muzzleUntil: 0, hitFlashUntil: 0, lastHpShown: null,
-    speedUntil: 0, shieldUntil: 0, protectedUntil: 0, weaponUntil: 0, weapon: '', fx: [], shakeUntil: 0, specIdx: 0, lastBurst: 0,
+    speedUntil: 0, shieldUntil: 0, protectedUntil: 0, weaponUntil: 0, weapon: '', fx: [], bots: [], botCheckAt: 0, botAnnounced: false, shakeUntil: 0, specIdx: 0, lastBurst: 0,
     rafId: null, lastTs: 0,
     onRoundEnd: null, onFeed: null, onHud: null,
     seed: 1,
@@ -70,7 +70,7 @@
       this.myX = p.x; this.myY = p.y; this.myAngle = 0;
       this.myHp = MAX_HP; this.myAlive = true;
       this.lastHpShown = MAX_HP; this.muzzleUntil = 0; this.hitFlashUntil = 0;
-      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.shakeUntil = 0; this.specIdx = 0;
+      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.specIdx = 0;
       this.protectedUntil = performance.now() + 2000; // حماية بداية الجولة
       this.writeSelf(true);
       this.lastTs = performance.now();
@@ -280,7 +280,9 @@
       this.respawnAt = performance.now() + RESPAWN_SEC * 1000;
       const ref = this.db.ref('rooms/' + this.roomCode + '/players/' + this.me.uid);
       ref.update({ alive: false, hp: 0, deaths: this.deaths }).catch(() => {});
-      if (killerUid && killerUid !== this.me.uid) {
+      if (killerUid && String(killerUid).indexOf('bot') === 0) {
+        this.onFeed('☠️ قتلك بوت');
+      } else if (killerUid && killerUid !== this.me.uid) {
         this.db.ref('rooms/' + this.roomCode + '/players/' + killerUid + '/kills')
           .transaction((k) => (k || 0) + 1).catch(() => {});
         this.db.ref('rooms/' + this.roomCode + '/events').push({
@@ -453,6 +455,50 @@
       }
 
       // الطلقات
+      // بوتات التدريب: بتظهر بس لما تكون لوحدك في الغرفة
+      const nowB = performance.now();
+      if (nowB >= this.botCheckAt) {
+        this.botCheckAt = nowB + 1000;
+        const humans = Object.keys(this.players).length;
+        if (humans === 0 && this.bots.length === 0) {
+          for (let k = 0; k < 3; k++) {
+            const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 77));
+            this.bots.push({ id: 'bot' + k, name: '🤖 بوت ' + (k + 1), x: p.x, y: p.y, hp: MAX_HP, alive: true, angle: 0, lastFire: nowB + 1200 + k * 400, respawnAt: 0, phase: Math.random() * 6, color: 3 + k });
+          }
+          if (!this.botAnnounced) { this.botAnnounced = true; this.onFeed('🤖 انت لوحدك: ٣ بوتات تدريب انضموا للمعركة'); }
+        } else if (humans > 0 && this.bots.length) {
+          this.bots = [];
+          this.onFeed('👥 لاعب حقيقي دخل: البوتات خرجت');
+        }
+      }
+      for (const bt of this.bots) {
+        if (!bt.alive) {
+          if (nowB >= bt.respawnAt) { const p = this.freeSpot(mulberry32(Date.now() & 0xffff)); bt.x = p.x; bt.y = p.y; bt.hp = MAX_HP; bt.alive = true; bt.lastFire = nowB + 1000; }
+          continue;
+        }
+        const dxm = this.myX - bt.x, dym = this.myY - bt.y, dist = Math.hypot(dxm, dym) || 1;
+        const tx = this.myAlive ? dxm / dist : Math.cos(bt.phase), ty = this.myAlive ? dym / dist : Math.sin(bt.phase);
+        bt.angle = Math.atan2(ty, tx);
+        let mvx = 0, mvy = 0;
+        if (dist > 380) { mvx = tx; mvy = ty; }
+        else if (dist < 220) { mvx = -tx; mvy = -ty; }
+        else { const s = Math.sin(nowB / 900 + bt.phase) > 0 ? 1 : -1; mvx = -ty * s; mvy = tx * s; }
+        let nx = clamp(bt.x + mvx * 150 * dt, PLAYER_R, WORLD - PLAYER_R), ny = clamp(bt.y + mvy * 150 * dt, PLAYER_R, WORLD - PLAYER_R);
+        for (const o of this.obstacles) {
+          if (circleRect(nx, ny, PLAYER_R, o)) {
+            if (!circleRect(nx, bt.y, PLAYER_R, o)) ny = bt.y;
+            else if (!circleRect(bt.x, ny, PLAYER_R, o)) nx = bt.x;
+            else { nx = bt.x; ny = bt.y; bt.phase += 2; }
+          }
+        }
+        bt.x = nx; bt.y = ny;
+        if (this.myAlive && dist < 650 && nowB - bt.lastFire > 950) {
+          bt.lastFire = nowB + Math.random() * 500;
+          const a = bt.angle + (Math.random() - 0.5) * 0.45;
+          this.bullets.push({ id: bt.id + '_' + Math.floor(nowB), uid: bt.id, x: bt.x + Math.cos(a) * (PLAYER_R + 6), y: bt.y + Math.sin(a) * (PLAYER_R + 6), dx: Math.cos(a), dy: Math.sin(a), age: 0 });
+        }
+      }
+
       for (let i = this.bullets.length - 1; i >= 0; i--) {
         const b = this.bullets[i];
         b.x += b.dx * BULLET_SPEED * dt;
@@ -462,6 +508,23 @@
         if (!dead) {
           for (const o of this.obstacles) {
             if (b.x > o.x && b.x < o.x + o.w && b.y > o.y && b.y < o.y + o.h) { dead = true; break; }
+          }
+        }
+        if (!dead && b.uid === this.me.uid) {
+          for (const bt of this.bots) {
+            if (bt.alive && Math.hypot(b.x - bt.x, b.y - bt.y) < PLAYER_R + 4) {
+              dead = true;
+              bt.hp -= BULLET_DMG;
+              this.burst(bt.x, bt.y, '#ff6b81', 8, 180);
+              if (bt.hp <= 0) {
+                bt.alive = false; bt.respawnAt = performance.now() + 3000;
+                this.burst(bt.x, bt.y, '#ffd32a', 28, 300);
+                this.onFeed('🤖 قضيت على ' + bt.name);
+                Sfx.kill();
+                this.db.ref('rooms/' + this.roomCode + '/players/' + this.me.uid + '/kills').transaction((k) => (k || 0) + 1).catch(() => {});
+              }
+              break;
+            }
           }
         }
         // إصابتي أنا (كل جهاز مسؤول عن لاعبه) — الدرع والحماية بيصدّوا
@@ -753,6 +816,7 @@
         if (hp > 0) { roundRect(ctx, x - 22, y - PLAYER_R - 10, 44 * Math.max(0, hp) / MAX_HP, 6, 3); ctx.fill(); }
         ctx.globalAlpha = 1;
       };
+      for (const bt of this.bots) drawPlayer(bt.id, { name: bt.name, avatar: '🤖', color: bt.color, x: bt.x, y: bt.y, alive: bt.alive, hp: bt.hp, angle: bt.angle }, false);
       for (const uid in this.players) drawPlayer(uid, this.players[uid], false);
       drawPlayer(this.me.uid, { name: this.me.name, avatar: this.me.avatar, color: this.me.color }, true);
 
