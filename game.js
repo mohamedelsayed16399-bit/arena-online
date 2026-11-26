@@ -49,7 +49,7 @@
     respawnAt: 0,
     pickups: {}, lastPickupSpawn: 0,
     muzzleUntil: 0, hitFlashUntil: 0, lastHpShown: null,
-    speedUntil: 0, shieldUntil: 0, protectedUntil: 0, weaponUntil: 0, weapon: '', fx: [], dashUntil: 0, dashCd: 0, dashX: 0, dashY: 0, mode: 'classic', zpts: 0, zoneAcc: 0, zoneCache: null, bots: [], botCheckAt: 0, botAnnounced: false, shakeUntil: 0, specIdx: 0, lastBurst: 0,
+    speedUntil: 0, shieldUntil: 0, protectedUntil: 0, weaponUntil: 0, weapon: '', fx: [], dashUntil: 0, dashCd: 0, gren: [], grenCd: 0, rings: [], gcount: 0, dashX: 0, dashY: 0, mode: 'classic', zpts: 0, zoneAcc: 0, zoneCache: null, bots: [], botCheckAt: 0, botAnnounced: false, shakeUntil: 0, specIdx: 0, lastBurst: 0,
     rafId: null, lastTs: 0,
     onRoundEnd: null, onFeed: null, onHud: null,
     seed: 1,
@@ -78,7 +78,7 @@
       this.myX = p.x; this.myY = p.y; this.myAngle = 0;
       this.myHp = MAX_HP; this.myAlive = true;
       this.lastHpShown = MAX_HP; this.muzzleUntil = 0; this.hitFlashUntil = 0;
-      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.specIdx = 0;
+      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.specIdx = 0;
       this.protectedUntil = performance.now() + 2000; // حماية بداية الجولة
       this.writeSelf(true);
       this.onFeed('🗺️ ساحة ' + this.theme.name);
@@ -203,6 +203,8 @@
         if (i >= 0) this.bullets.splice(i, 1);
         if (e.target === this.me.uid) Sfx.hit();
         else if (this.players[e.target] && this.players[e.target].x !== undefined) this.burst(this.players[e.target].x, this.players[e.target].y, '#ff6b81', 8, 180);
+      } else if (e.t === 'gren') {
+        if (e.uid !== this.me.uid) this.addGrenade({ id: e.id, uid: e.uid, x: e.x, y: e.y, tx: e.tx, ty: e.ty });
       } else if (e.t === 'emote') {
         if (e.uid !== this.me.uid) {
           const n = (this.players[e.uid] && this.players[e.uid].name) || 'لاعب';
@@ -268,6 +270,54 @@
       this.dashUntil = now + 170; this.dashCd = now + 2500;
       this.burst(this.myX, this.myY, '#7bdff2', 16, 220);
       this.ach('dash');
+    },
+
+    throwGrenade() {
+      const now = performance.now();
+      if (!this.myAlive || !this.running || now < this.grenCd) return;
+      this.grenCd = now + 8000;
+      const d = 260, tx = clamp(this.myX + Math.cos(this.myAngle) * d, 20, WORLD - 20), ty = clamp(this.myY + Math.sin(this.myAngle) * d, 20, WORLD - 20);
+      const id = this.me.uid.slice(0, 4) + '_g' + Math.floor(now);
+      this.addGrenade({ id, uid: this.me.uid, x: this.myX, y: this.myY, tx, ty });
+      this.gcount = (this.gcount || 0) + 1;
+      this.ach('gren');
+      this.db.ref('rooms/' + this.roomCode + '/events').push({ t: 'gren', id, uid: this.me.uid, x: Math.round(this.myX), y: Math.round(this.myY), tx: Math.round(tx), ty: Math.round(ty), ts: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
+    },
+
+    addGrenade(o) {
+      if (this.gren.some((q) => q.id === o.id)) return;
+      this.gren.push({ id: o.id, uid: o.uid, sx: o.x, sy: o.y, tx: o.tx, ty: o.ty, x: o.x, y: o.y, age: 0 });
+      Sfx.shoot(0.4);
+    },
+
+    explodeGrenade(q) {
+      const R = 120;
+      this.rings.push({ x: q.tx, y: q.ty, age: 0, life: 0.55, R });
+      this.burst(q.tx, q.ty, '#ff9f43', 40, 420);
+      this.burst(q.tx, q.ty, '#ffd32a', 24, 300);
+      this.shakeUntil = Math.max(this.shakeUntil, performance.now() + 280);
+      if (q.uid === this.me.uid) {
+        for (const bt of this.bots) {
+          if (bt.alive && Math.hypot(bt.x - q.tx, bt.y - q.ty) < R) {
+            bt.hp -= 40;
+            this.burst(bt.x, bt.y, '#ff6b81', 8, 180);
+            if (bt.hp <= 0) {
+              bt.alive = false; bt.respawnAt = performance.now() + 3000;
+              this.burst(bt.x, bt.y, '#ffd32a', 28, 300);
+              this.onFeed('💣 فجّرت ' + bt.name);
+              Sfx.kill(); this.ach('kill');
+              this.db.ref('rooms/' + this.roomCode + '/players/' + this.me.uid + '/kills').transaction((k) => (k || 0) + 1).catch(() => {});
+            }
+          }
+        }
+      } else if (this.myAlive && performance.now() > this.protectedUntil && Math.hypot(this.myX - q.tx, this.myY - q.ty) < R) {
+        if (performance.now() < this.shieldUntil) { this.onFeed('🛡️ الدرع صدّ الانفجار!'); }
+        else {
+          this.myHp -= 40; this.onHud(this.myHp); this.writeSelf(true); Sfx.hit();
+          this.shakeUntil = performance.now() + 300;
+          if (this.myHp <= 0) { this.burst(this.myX, this.myY, '#ffd32a', 30, 320); this.die(q.uid); }
+        }
+      }
     },
 
     zoneInfo() {
@@ -348,7 +398,7 @@
 
     // ============ المدخلات ============
     bindInput() {
-      this._kd = (e) => { this.keys[e.key.toLowerCase()] = true; if (e.key === ' ' || e.key === 'Shift') this.dash(); if (e.key === ' ') e.preventDefault(); };
+      this._kd = (e) => { this.keys[e.key.toLowerCase()] = true; if (e.key === ' ' || e.key === 'Shift') this.dash(); if (e.key === ' ') e.preventDefault(); if (e.key === 'g' || e.key === 'G') this.throwGrenade(); };
       this._ku = (e) => { this.keys[e.key.toLowerCase()] = false; };
       this._mm = (e) => { this.mouse.x = e.clientX; this.mouse.y = e.clientY; };
       this._md = (e) => { if (e.target.id === 'game-canvas' && !this.myAlive) this.specIdx++; if (e.target.id === 'game-canvas') { this.mouse.down = true; this.mouse.x = e.clientX; this.mouse.y = e.clientY; const wx = this.cam.x + e.clientX, wy = this.cam.y + e.clientY; this.myAngle = Math.atan2(wy - this.myY, wx - this.myX); this.shoot(); } };
@@ -624,6 +674,16 @@
       }
 
       // الكاميرا
+      for (let i = this.gren.length - 1; i >= 0; i--) {
+        const q = this.gren[i];
+        q.age += dt;
+        const p = Math.min(1, q.age / 0.8);
+        q.x = q.sx + (q.tx - q.sx) * p; q.y = q.sy + (q.ty - q.sy) * p; q.h = Math.sin(p * Math.PI) * 60;
+        if (q.age >= 0.8) { this.gren.splice(i, 1); this.explodeGrenade(q); }
+      }
+      for (let i = this.rings.length - 1; i >= 0; i--) { this.rings[i].age += dt; if (this.rings[i].age >= this.rings[i].life) this.rings.splice(i, 1); }
+      const gb = document.getElementById('btn-gren');
+      if (gb) { const gc = Math.ceil((this.grenCd - performance.now()) / 1000); gb.textContent = gc > 0 ? '💣 ' + gc : '💣'; gb.style.opacity = gc > 0 ? '0.45' : '1'; }
       for (let i = this.fx.length - 1; i >= 0; i--) {
         const f = this.fx[i];
         f.age += dt; f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= 0.92; f.vy *= 0.92;
@@ -826,6 +886,19 @@
       }
       ctx.globalAlpha = 1;
 
+      for (const r of this.rings) {
+        const k = r.age / r.life;
+        ctx.globalAlpha = 1 - k; ctx.strokeStyle = '#ff9f43'; ctx.lineWidth = 6 * (1 - k) + 1;
+        ctx.beginPath(); ctx.arc(r.x, r.y, r.R * k, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,159,67,0.25)'; ctx.beginPath(); ctx.arc(r.x, r.y, r.R * k, 0, Math.PI * 2); ctx.fill();
+      }
+      for (const q of this.gren) {
+        ctx.globalAlpha = 0.25; ctx.strokeStyle = '#ff6b81'; ctx.lineWidth = 2; ctx.setLineDash([6, 6]);
+        ctx.beginPath(); ctx.arc(q.tx, q.ty, 120, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+        ctx.globalAlpha = 1; ctx.font = '22px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('\u{1F4A3}', q.x, q.y - (q.h || 0));
+      }
+      ctx.globalAlpha = 1;
       // اللاعبين
       const drawPlayer = (uid, p, isMe) => {
         const x = isMe ? this.myX : p.x, y = isMe ? this.myY : p.y;
