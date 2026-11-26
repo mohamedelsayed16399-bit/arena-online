@@ -322,7 +322,7 @@
 
     coin(n) { if (this.mod === 'loot' && this.bots.length) n *= 2; try { localStorage.setItem('arena_coins', String((+localStorage.getItem('arena_coins') || 0) + n)); } catch (err) { /* ignore */ } },
     bulletColor() { try { return (window.ARENA_SKINS || {})[localStorage.getItem('arena_skin') || 'gold'] || '#ffd32a'; } catch (err) { return '#ffd32a'; } },
-    ach(type, val) { if (type === 'kill') { this.coin(1); this.ult = Math.min(100, (this.ult || 0) + 20); } else if (type === 'wave') this.ult = Math.min(100, (this.ult || 0) + 30); if (type === 'kill') { /* coin above */ } else if (type === 'wave') this.coin(5); try { if (window.ArenaAch) window.ArenaAch.hit(type, val); } catch (err) { /* ignore */ } },
+    ach(type, val) { if (type === 'kill') { const cn = performance.now(); this.combo = (this._comboAt && cn - this._comboAt < 4000) ? (this.combo || 0) + 1 : 1; this._comboAt = cn; if (this.combo >= 2) { const cx = this.combo; this.modBanner = { text: (cx === 2 ? '✌️ ثنائية!' : cx === 3 ? '🔥 ثلاثية! +٢ عملة' : cx === 4 ? '💥 رباعية! +٣ عملة' : '☠️ مجزرة ×' + cx + '! +٥ عملة'), until: cn + 1800 }; if (cx >= 3) this.coin(cx === 3 ? 2 : cx === 4 ? 3 : 5); this.ult = Math.min(100, (this.ult || 0) + 5 * cx); try { Sfx.horn(); } catch (e2) { /* ignore */ } } this.coin(1); this.ult = Math.min(100, (this.ult || 0) + 20); } else if (type === 'wave') this.ult = Math.min(100, (this.ult || 0) + 30); if (type === 'kill') { /* coin above */ } else if (type === 'wave') this.coin(5); try { if (window.ArenaAch) window.ArenaAch.hit(type, val); } catch (err) { /* ignore */ } },
 
     ultimate() {
       if (!this.myAlive || !this.running || (this.ult || 0) < 100) return;
