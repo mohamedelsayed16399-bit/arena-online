@@ -63,7 +63,7 @@
       this.seed = opts.seed || 1;
       this.endsAt = opts.endsAt || 0;
       this.dashUntil = 0; this.dashCd = 0;
-      this.theme = THEMES[Math.abs(Math.floor(this.seed)) % THEMES.length]; this.mode = opts.mode || 'classic'; this.zpts = 0; this.zoneAcc = 0; this.zoneCache = null; this.gemTaken = {};
+      this.theme = THEMES[Math.abs(Math.floor(this.seed)) % THEMES.length]; this.mode = opts.mode || 'classic'; this.bossRush = !!window.ARENA_BR; window.ARENA_BR = false; this.zpts = 0; this.zoneAcc = 0; this.zoneCache = null; this.gemTaken = {};
       this.onRoundEnd = opts.onRoundEnd; this.onFeed = opts.onFeed || (() => {}); this.onHud = opts.onHud || (() => {});
       this.canvas = document.getElementById('game-canvas');
       this.ctx = this.canvas.getContext('2d');
@@ -432,14 +432,16 @@
     hideUpgrades() { const el = document.getElementById('upgrade-picker'); if (el) el.style.display = 'none'; },
 
     spawnWave(nowB) {
-      const n = Math.min(9, 2 + this.wave);
+      const wv = this.bossRush ? [1, 10, 15, 20][(this.wave - 1) % 4] : this.wave, sc = this.bossRush ? 1 + 0.3 * Math.floor((this.wave - 1) / 4) : 1;
+      const n = this.bossRush ? Math.min(4, Math.floor(this.wave / 3)) : Math.min(9, 2 + this.wave);
       this.bots = [];
       this.barrels = [];
       for (let k = 0; k < 6; k++) { const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 131 + 7)); this.barrels.push({ x: p.x, y: p.y, hp: 2, dead: false }); }
-      if (this.wave % 5 === 0) {
+      if (this.bossRush || this.wave % 5 === 0) {
         const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + 999));
-        this.bots.push({ id: 'bot99', name: this.wave >= 20 ? '☄️ زعيم النيازك' : this.wave >= 15 ? '🌀 زعيم الشبح' : this.wave >= 10 ? '💀 زعيم الانفجار' : '👑 الزعيم', boss: true, boss2: this.wave >= 10 && this.wave < 15, boss3: this.wave >= 15 && this.wave < 20, boss4: this.wave >= 20, nextMet: nowB + 3000, nextTp: nowB + 4500, max: this.wave >= 20 ? 800 : this.wave >= 15 ? 600 : this.wave >= 10 ? 450 : 300, nextBurst: nowB + 3500, x: p.x, y: p.y, hp: this.wave >= 20 ? 800 : this.wave >= 15 ? 600 : this.wave >= 10 ? 450 : 300, alive: true, angle: 0, lastFire: nowB + 1500, respawnAt: 0, phase: 0, color: 1 });
-        this.onFeed(this.wave >= 20 ? '☄️ زعيم النيازك! بيمطر نيازك — اتحرك!' : this.wave >= 15 ? '🌀 زعيم الشبح! بيتنقل وبيستدعي أتباع' : this.wave >= 10 ? '💀 زعيم الانفجار! دايرة طلقات' : '👑 زعيم ظهر! ٣٠٠ صحة وبيضرب ٣ طلقات'); Sfx.horn();
+        this.bots.push({ id: 'bot99', name: wv >= 20 ? '☄️ زعيم النيازك' : wv >= 15 ? '🌀 زعيم الشبح' : wv >= 10 ? '💀 زعيم الانفجار' : '👑 الزعيم', boss: true, boss2: wv >= 10 && wv < 15, boss3: wv >= 15 && wv < 20, boss4: wv >= 20, nextMet: nowB + 3000, nextTp: nowB + 4500, max: wv >= 20 ? 800 : wv >= 15 ? 600 : wv >= 10 ? 450 : 300, nextBurst: nowB + 3500, x: p.x, y: p.y, hp: wv >= 20 ? 800 : wv >= 15 ? 600 : wv >= 10 ? 450 : 300, alive: true, angle: 0, lastFire: nowB + 1500, respawnAt: 0, phase: 0, color: 1 });
+        if (sc > 1) { const bb = this.bots[this.bots.length - 1]; bb.hp = Math.round(bb.hp * sc); bb.max = bb.hp; }
+        this.onFeed(wv >= 20 ? '☄️ زعيم النيازك! بيمطر نيازك — اتحرك!' : wv >= 15 ? '🌀 زعيم الشبح! بيتنقل وبيستدعي أتباع' : wv >= 10 ? '💀 زعيم الانفجار! دايرة طلقات' : '👑 زعيم ظهر! ٣٠٠ صحة وبيضرب ٣ طلقات'); Sfx.horn();
       }
       for (let k = 0; k < n; k++) {
         const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 77));
@@ -843,7 +845,7 @@
           this.wave++; this.waveAt = 0; this.upDone = false;
           if (this.myAlive) { this.myHp = Math.min(MAX_HP, this.myHp + 30); this.onHud(this.myHp); this.writeSelf(true); }
           this.spawnWave(nowB);
-          this.waveBanner = { text: '🌊 الموجة ' + this.wave + ' (' + this.bots.length + ' بوتات)', until: nowB + 2400 };
+          this.waveBanner = { text: (this.bossRush ? '👑 زعيم رقم ' : '🌊 الموجة ') + this.wave + ' (' + this.bots.length + ' بوتات)', until: nowB + 2400 };
         }
       }
       let lvl = BOT_LEVELS.normal;
