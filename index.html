@@ -48,6 +48,7 @@
         <button id="btn-join" class="btn btn-secondary">انضم</button>
       </div>
       <div class="menu-grid">
+        <button id="btn-rooms" class="btn btn-ghost">🚪 الغرف العامة</button>
         <button id="btn-leaderboard" class="btn btn-ghost">🏆 المتصدرون</button>
         <button id="btn-friends" class="btn btn-ghost">👥 الأصدقاء</button>
         <button id="btn-how" class="btn btn-ghost">❓ إزاي تلعب</button>
@@ -91,6 +92,12 @@
       <div id="hud-hp"><div id="hud-hp-fill"></div></div>
     </div>
     <div id="kill-feed"></div>
+    <div id="emotes">
+      <button class="emote" type="button">😂</button>
+      <button class="emote" type="button">🔥</button>
+      <button class="emote" type="button">👍</button>
+      <button class="emote" type="button">💀</button>
+    </div>
     <canvas id="minimap" width="220" height="220"></canvas>
     <div id="respawn-overlay" class="hidden">
       <p>💀 مت!</p>
@@ -107,6 +114,14 @@
     <div id="results-list" class="results-list"></div>
     <button id="btn-back-lobby" class="btn btn-primary btn-big">ارجع للغرفة 🔄</button>
     <button id="btn-back-home" class="btn btn-ghost">الصفحة الرئيسية</button>
+  </section>
+
+  <!-- شاشة الغرف العامة -->
+  <section id="screen-rooms" class="screen">
+    <h1>🚪 الغرف العامة</h1>
+    <div id="rooms-list" class="rooms-list"></div>
+    <button id="btn-rooms-refresh" class="btn btn-secondary">🔄 تحديث</button>
+    <button id="btn-back-from-rooms" class="btn btn-ghost">رجوع</button>
   </section>
 
   <!-- شاشة المتصدرين -->
