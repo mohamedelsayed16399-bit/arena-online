@@ -50,7 +50,7 @@
     respawnAt: 0,
     pickups: {}, lastPickupSpawn: 0,
     muzzleUntil: 0, hitFlashUntil: 0, lastHpShown: null,
-    speedUntil: 0, shieldUntil: 0, protectedUntil: 0, weaponUntil: 0, weapon: '', fx: [], dashUntil: 0, dashCd: 0, rs: { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }, barrels: [], wave: 1, waveAt: 0, waveBanner: null, gren: [], grenCd: 0, rings: [], gcount: 0, dashX: 0, dashY: 0, mode: 'classic', zpts: 0, zoneAcc: 0, zoneCache: null, bots: [], botCheckAt: 0, botAnnounced: false, shakeUntil: 0, specIdx: 0, lastBurst: 0, up: { dmg: 0, spd: 0, rate: 0, steal: 0, arm: 0 }, upDone: false, pickWait: false,
+    speedUntil: 0, shieldUntil: 0, protectedUntil: 0, weaponUntil: 0, weapon: '', fx: [], dashUntil: 0, dashCd: 0, rs: { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }, barrels: [], wave: 1, waveAt: 0, waveBanner: null, gren: [], grenCd: 0, rings: [], gcount: 0, dashX: 0, dashY: 0, mode: 'classic', zpts: 0, zoneAcc: 0, zoneCache: null, bots: [], botCheckAt: 0, botAnnounced: false, shakeUntil: 0, specIdx: 0, lastBurst: 0, meteors: [], up: { dmg: 0, spd: 0, rate: 0, steal: 0, arm: 0 }, upDone: false, pickWait: false,
     rafId: null, lastTs: 0,
     onRoundEnd: null, onFeed: null, onHud: null,
     seed: 1,
@@ -80,7 +80,7 @@
       this.myX = p.x; this.myY = p.y; this.myAngle = 0;
       this.myHp = MAX_HP; this.myAlive = true;
       this.lastHpShown = MAX_HP; this.muzzleUntil = 0; this.hitFlashUntil = 0;
-      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.rs = { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }; this.barrels = []; this.wave = 1; this.waveAt = 0; this.waveBanner = null; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.specIdx = 0; this.up = { dmg: 0, spd: 0, rate: 0, steal: 0, arm: 0 }; this.upDone = false; this.pickWait = false; this.hideUpgrades();
+      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.rs = { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }; this.barrels = []; this.wave = 1; this.waveAt = 0; this.waveBanner = null; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.specIdx = 0; this.meteors = []; this.up = { dmg: 0, spd: 0, rate: 0, steal: 0, arm: 0 }; this.upDone = false; this.pickWait = false; this.hideUpgrades();
       this.protectedUntil = performance.now() + 2000; // حماية بداية الجولة
       this.writeSelf(true);
       this.onFeed('🗺️ ساحة ' + this.theme.name);
@@ -407,8 +407,8 @@
       for (let k = 0; k < 6; k++) { const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 131 + 7)); this.barrels.push({ x: p.x, y: p.y, hp: 2, dead: false }); }
       if (this.wave % 5 === 0) {
         const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + 999));
-        this.bots.push({ id: 'bot99', name: this.wave >= 15 ? '🌀 زعيم الشبح' : this.wave >= 10 ? '💀 زعيم الانفجار' : '👑 الزعيم', boss: true, boss2: this.wave >= 10 && this.wave < 15, boss3: this.wave >= 15, nextTp: nowB + 4500, max: this.wave >= 15 ? 600 : this.wave >= 10 ? 450 : 300, nextBurst: nowB + 3500, x: p.x, y: p.y, hp: this.wave >= 15 ? 600 : this.wave >= 10 ? 450 : 300, alive: true, angle: 0, lastFire: nowB + 1500, respawnAt: 0, phase: 0, color: 1 });
-        this.onFeed(this.wave >= 15 ? '🌀 زعيم الشبح! بيتنقل وبيستدعي أتباع' : this.wave >= 10 ? '💀 زعيم الانفجار! دايرة طلقات' : '👑 زعيم ظهر! ٣٠٠ صحة وبيضرب ٣ طلقات'); Sfx.horn();
+        this.bots.push({ id: 'bot99', name: this.wave >= 20 ? '☄️ زعيم النيازك' : this.wave >= 15 ? '🌀 زعيم الشبح' : this.wave >= 10 ? '💀 زعيم الانفجار' : '👑 الزعيم', boss: true, boss2: this.wave >= 10 && this.wave < 15, boss3: this.wave >= 15 && this.wave < 20, boss4: this.wave >= 20, nextMet: nowB + 3000, nextTp: nowB + 4500, max: this.wave >= 20 ? 800 : this.wave >= 15 ? 600 : this.wave >= 10 ? 450 : 300, nextBurst: nowB + 3500, x: p.x, y: p.y, hp: this.wave >= 20 ? 800 : this.wave >= 15 ? 600 : this.wave >= 10 ? 450 : 300, alive: true, angle: 0, lastFire: nowB + 1500, respawnAt: 0, phase: 0, color: 1 });
+        this.onFeed(this.wave >= 20 ? '☄️ زعيم النيازك! بيمطر نيازك — اتحرك!' : this.wave >= 15 ? '🌀 زعيم الشبح! بيتنقل وبيستدعي أتباع' : this.wave >= 10 ? '💀 زعيم الانفجار! دايرة طلقات' : '👑 زعيم ظهر! ٣٠٠ صحة وبيضرب ٣ طلقات'); Sfx.horn();
       }
       for (let k = 0; k < n; k++) {
         const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 77));
@@ -821,6 +821,14 @@
           if (hd < hz.r) { bt.hp -= 12 * dt; if (Math.random() < 0.15) this.burst(bt.x, bt.y, '#ff6b35', 2, 100); if (bt.hp <= 0) { bt.alive = false; bt.respawnAt = performance.now() + 3000; this.burst(bt.x, bt.y, '#ffd32a', 28, 300); this.onFeed('🌋 الحمم قضت على ' + bt.name); break; } }
         }
         if (!bt.alive) continue;
+        if (bt.boss4 && nowB >= bt.nextMet && this.myAlive) {
+          bt.nextMet = nowB + 3500;
+          for (let m = 0; m < 3; m++) {
+            const ma = Math.random() * 6.283, md = m === 0 ? 0 : 60 + Math.random() * 160;
+            this.meteors.push({ x: clamp(this.myX + Math.cos(ma) * md, 60, WORLD - 60), y: clamp(this.myY + Math.sin(ma) * md, 60, WORLD - 60), at: nowB + 1400, t0: nowB, R: 85 });
+          }
+          this.onFeed('☄️ نيازك جاية! اتحرك'); 
+        }
         if (bt.boss3 && nowB >= bt.nextTp && this.myAlive) {
           bt.nextTp = nowB + 5000;
           this.rings.push({ x: bt.x, y: bt.y, age: 0, life: 0.5, R: 80 }); this.burst(bt.x, bt.y, '#18dcff', 18, 260);
@@ -916,6 +924,20 @@
           }
         }
         if (dead) { if (b.age <= (b.life || BULLET_LIFE)) this.burst(b.x, b.y, '#ffd32a', 4, 90); this.bullets.splice(i, 1); }
+      }
+
+      // النيازك
+      for (let i = this.meteors.length - 1; i >= 0; i--) {
+        const mt = this.meteors[i];
+        if (performance.now() >= mt.at) {
+          this.meteors.splice(i, 1);
+          this.rings.push({ x: mt.x, y: mt.y, age: 0, life: 0.6, R: mt.R + 20 }); this.burst(mt.x, mt.y, '#ff6b35', 36, 400); this.burst(mt.x, mt.y, '#ffd32a', 16, 260); Sfx.boom();
+          this.shakeUntil = Math.max(this.shakeUntil, performance.now() + 250);
+          if (this.myAlive && Math.hypot(this.myX - mt.x, this.myY - mt.y) < mt.R) {
+            if (performance.now() < this.shieldUntil) { this.onFeed('🛡️ الدرع صدّ النيزك!'); }
+            else { this.myHp -= 45; this.onHud(this.myHp); this.writeSelf(true); Sfx.hit(); if (this.myHp <= 0) { this.burst(this.myX, this.myY, '#ffd32a', 30, 320); this.die('bot99'); } }
+          }
+        }
       }
 
       // تنعيم حركة اللاعبين التانيين
@@ -1184,6 +1206,12 @@
         ctx.font = '24px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff';
         ctx.fillText('\u{1F6E2}', br.x, br.y + 1);
       }
+      for (const mt of this.meteors) {
+        const k = Math.min(1, (performance.now() - mt.t0) / (mt.at - mt.t0)), pl = 0.6 + 0.4 * Math.sin(performance.now() / 70);
+        ctx.save(); ctx.globalAlpha = 0.25 + 0.3 * pl; ctx.fillStyle = '#ff4757'; ctx.beginPath(); ctx.arc(mt.x, mt.y, mt.R, 0, 6.283); ctx.fill();
+        ctx.globalAlpha = 0.9; ctx.strokeStyle = '#ff9f43'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(mt.x, mt.y, mt.R * k, 0, 6.283); ctx.stroke();
+        ctx.globalAlpha = 1; ctx.font = '34px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('☄️', mt.x + (1 - k) * 120, mt.y - (1 - k) * 380); ctx.restore();
+      }
       for (const r of this.rings) {
         const k = r.age / r.life;
         ctx.globalAlpha = 1 - k; ctx.strokeStyle = '#ff9f43'; ctx.lineWidth = 6 * (1 - k) + 1;
@@ -1274,10 +1302,10 @@
       for (const bt of this.bots) drawPlayer(bt.id, { name: bt.name, avatar: bt.boss ? '👹' : '🤖', color: bt.color, x: bt.x, y: bt.y, alive: bt.alive, hp: Math.min(bt.hp, MAX_HP), angle: bt.angle }, false);
       for (const bt of this.bots) {
         if (!bt.boss || !bt.alive) continue;
-        const bc = bt.boss3 ? '#18dcff' : bt.boss2 ? '#a55eea' : '#ff4757'; ctx.strokeStyle = bc; ctx.lineWidth = 5; ctx.shadowColor = bc; ctx.shadowBlur = 16;
+        const bc = bt.boss4 ? '#ff6b35' : bt.boss3 ? '#18dcff' : bt.boss2 ? '#a55eea' : '#ff4757'; ctx.strokeStyle = bc; ctx.lineWidth = 5; ctx.shadowColor = bc; ctx.shadowBlur = 16;
         ctx.beginPath(); ctx.arc(bt.x, bt.y, PLAYER_R + 12, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0;
         ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(bt.x - 40, bt.y - PLAYER_R - 28, 80, 8);
-        ctx.fillStyle = bt.boss3 ? '#18dcff' : bt.boss2 ? '#a55eea' : '#ff4757'; ctx.fillRect(bt.x - 40, bt.y - PLAYER_R - 28, 80 * Math.max(0, bt.hp) / (bt.max || 300), 8);
+        ctx.fillStyle = bt.boss4 ? '#ff6b35' : bt.boss3 ? '#18dcff' : bt.boss2 ? '#a55eea' : '#ff4757'; ctx.fillRect(bt.x - 40, bt.y - PLAYER_R - 28, 80 * Math.max(0, bt.hp) / (bt.max || 300), 8);
         ctx.font = '16px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#ffd32a'; ctx.fillText('\u{1F451}', bt.x, bt.y - PLAYER_R - 38);
       }
       for (const uid in this.players) drawPlayer(uid, this.players[uid], false);
@@ -1315,7 +1343,7 @@
 
       if (this.mode === 'gems') {
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold 18px Cairo, sans-serif'; ctx.fillStyle = '#18dcff';
-        ctx.fillText('💎 جواهرك: ' + (this.zpts || 0), innerWidth / 2, innerWidth < 641 ? 84 : 108);
+        ctx.textAlign = 'right'; ctx.fillText('💎 ' + (this.zpts || 0), innerWidth - 14, 198);
       }
       if (this.mode === 'zone') {
         const z2 = this.zoneInfo();
