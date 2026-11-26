@@ -295,6 +295,7 @@
         hp: this.myHp, alive: this.myAlive,
         sh: performance.now() < this.shieldUntil ? 1 : 0,
         zpts: this.zpts || 0,
+        name: this.me.name, avatar: this.me.avatar, color: this.me.color,
       }).catch(() => {});
     },
 
