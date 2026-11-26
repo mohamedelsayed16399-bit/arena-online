@@ -49,7 +49,7 @@
     respawnAt: 0,
     pickups: {}, lastPickupSpawn: 0,
     muzzleUntil: 0, hitFlashUntil: 0, lastHpShown: null,
-    speedUntil: 0, shieldUntil: 0, protectedUntil: 0, weaponUntil: 0, weapon: '', fx: [], mode: 'classic', zpts: 0, zoneAcc: 0, zoneCache: null, bots: [], botCheckAt: 0, botAnnounced: false, shakeUntil: 0, specIdx: 0, lastBurst: 0,
+    speedUntil: 0, shieldUntil: 0, protectedUntil: 0, weaponUntil: 0, weapon: '', fx: [], dashUntil: 0, dashCd: 0, dashX: 0, dashY: 0, mode: 'classic', zpts: 0, zoneAcc: 0, zoneCache: null, bots: [], botCheckAt: 0, botAnnounced: false, shakeUntil: 0, specIdx: 0, lastBurst: 0,
     rafId: null, lastTs: 0,
     onRoundEnd: null, onFeed: null, onHud: null,
     seed: 1,
@@ -60,6 +60,7 @@
       this.me = opts.me; this.host = opts.host;
       this.seed = opts.seed || 1;
       this.endsAt = opts.endsAt || 0;
+      this.dashUntil = 0; this.dashCd = 0;
       this.theme = THEMES[Math.abs(Math.floor(this.seed)) % THEMES.length]; this.mode = opts.mode || 'classic'; this.zpts = 0; this.zoneAcc = 0; this.zoneCache = null;
       this.onRoundEnd = opts.onRoundEnd; this.onFeed = opts.onFeed || (() => {}); this.onHud = opts.onHud || (() => {});
       this.canvas = document.getElementById('game-canvas');
@@ -216,6 +217,7 @@
         this.streaks[e.target] = 0;
         this.streaks[e.by] = (this.streaks[e.by] || 0) + 1;
         const sk = this.streaks[e.by];
+        if (e.by === this.me.uid) { this.ach('kill'); this.ach('streak', sk); }
         if (sk >= 3) this.onFeed(`🔥 ${killer} في سلسلة ${sk} قتلات!`);
         Sfx.kill();
         if (e.target === this.me.uid && this.myAlive) {
@@ -247,6 +249,25 @@
         t: 'emote', uid: this.me.uid, e,
         ts: firebase.database.ServerValue.TIMESTAMP,
       }).catch(() => {});
+    },
+
+    ach(type, val) { try { if (window.ArenaAch) window.ArenaAch.hit(type, val); } catch (err) { /* ignore */ } },
+
+    dash() {
+      const now = performance.now();
+      if (!this.myAlive || !this.running || now < this.dashCd) return;
+      let mx = 0, my = 0;
+      if (this.keys['w'] || this.keys['arrowup']) my -= 1;
+      if (this.keys['s'] || this.keys['arrowdown']) my += 1;
+      if (this.keys['a'] || this.keys['arrowleft']) mx -= 1;
+      if (this.keys['d'] || this.keys['arrowright']) mx += 1;
+      if (this.joyL.active) { mx = this.joyL.dx; my = this.joyL.dy; }
+      let l = Math.hypot(mx, my);
+      if (l < 0.1) { mx = Math.cos(this.myAngle); my = Math.sin(this.myAngle); l = 1; }
+      this.dashX = mx / l; this.dashY = my / l;
+      this.dashUntil = now + 170; this.dashCd = now + 2500;
+      this.burst(this.myX, this.myY, '#7bdff2', 16, 220);
+      this.ach('dash');
     },
 
     zoneInfo() {
@@ -327,7 +348,7 @@
 
     // ============ المدخلات ============
     bindInput() {
-      this._kd = (e) => { this.keys[e.key.toLowerCase()] = true; if (e.key === ' ') e.preventDefault(); };
+      this._kd = (e) => { this.keys[e.key.toLowerCase()] = true; if (e.key === ' ' || e.key === 'Shift') this.dash(); if (e.key === ' ') e.preventDefault(); };
       this._ku = (e) => { this.keys[e.key.toLowerCase()] = false; };
       this._mm = (e) => { this.mouse.x = e.clientX; this.mouse.y = e.clientY; };
       this._md = (e) => { if (e.target.id === 'game-canvas' && !this.myAlive) this.specIdx++; if (e.target.id === 'game-canvas') { this.mouse.down = true; this.mouse.x = e.clientX; this.mouse.y = e.clientY; const wx = this.cam.x + e.clientX, wy = this.cam.y + e.clientY; this.myAngle = Math.atan2(wy - this.myY, wx - this.myX); this.shoot(); } };
@@ -443,12 +464,15 @@
         if (this.keys['a'] || this.keys['arrowleft']) mx -= 1;
         if (this.keys['d'] || this.keys['arrowright']) mx += 1;
         if (this.joyL.active) { mx = this.joyL.dx; my = this.joyL.dy; }
+        const dashing = performance.now() < this.dashUntil;
+        if (dashing) { mx = this.dashX; my = this.dashY; }
         const len = Math.hypot(mx, my);
         if (len > 0.01) {
           if (len > 1) { mx /= len; my /= len; }
-          const spd = performance.now() < this.speedUntil ? SPEED * 1.4 : SPEED;
+          const spd = dashing ? SPEED * 4.2 : performance.now() < this.speedUntil ? SPEED * 1.4 : SPEED;
           let nx = this.myX + mx * spd * dt;
-          let ny = this.myY + my * SPEED * dt;
+          let ny = this.myY + my * spd * dt;
+          if (dashing && Math.random() < 0.7) this.burst(this.myX, this.myY, '#7bdff2', 2, 60);
           nx = Math.max(PLAYER_R, Math.min(WORLD - PLAYER_R, nx));
           ny = Math.max(PLAYER_R, Math.min(WORLD - PLAYER_R, ny));
           // اصطدام بالحواجز
@@ -476,11 +500,18 @@
       }
 
       // الطلقات
+      const db2 = document.getElementById('btn-dash');
+      if (db2) {
+        const cdl = Math.ceil((this.dashCd - performance.now()) / 1000);
+        db2.textContent = cdl > 0 ? '💨 ' + cdl : '💨';
+        db2.style.opacity = cdl > 0 ? '0.45' : '1';
+      }
+
       // منطقة السيطرة: نقطة كل ثانية وانت جواها
       const zn = this.zoneInfo();
       if (zn && this.myAlive && Math.hypot(this.myX - zn.x, this.myY - zn.y) < zn.r) {
         this.zoneAcc += dt;
-        if (this.zoneAcc >= 1) { this.zoneAcc -= 1; this.zpts = (this.zpts || 0) + 1; this.writeSelf(true); }
+        if (this.zoneAcc >= 1) { this.zoneAcc -= 1; this.zpts = (this.zpts || 0) + 1; this.ach('zone', this.zpts); this.writeSelf(true); }
       }
 
       // بوتات التدريب: بتظهر بس لما تكون لوحدك في الغرفة
@@ -551,6 +582,7 @@
                 this.burst(bt.x, bt.y, '#ffd32a', 28, 300);
                 this.onFeed('🤖 قضيت على ' + bt.name);
                 Sfx.kill();
+                this.ach('kill');
                 this.db.ref('rooms/' + this.roomCode + '/players/' + this.me.uid + '/kills').transaction((k) => (k || 0) + 1).catch(() => {});
               }
               break;
@@ -643,6 +675,7 @@
             this.shieldUntil = performance.now() + 5000;
             this.onFeed('🛡️ درع ٥ ثواني!');
           }
+          this.ach('pickup');
           this.db.ref('rooms/' + this.roomCode + '/pickups/' + pid).remove().catch(() => {});
           this.writeSelf(true);
           break;
