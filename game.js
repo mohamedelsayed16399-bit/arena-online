@@ -1060,12 +1060,12 @@
       if (this.bots.length) {
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.font = 'bold 15px Cairo, sans-serif'; ctx.fillStyle = '#7bdff2';
-        ctx.fillText('🌊 موجة ' + this.wave + ' | بوتات: ' + this.bots.filter((q) => q.alive).length, innerWidth / 2, innerWidth < 641 ? 160 : 78);
+        ctx.fillText('🌊 موجة ' + this.wave + ' | بوتات: ' + this.bots.filter((q) => q.alive).length, innerWidth / 2, innerWidth < 641 ? innerHeight - 215 : 78);
         const wb = this.waveBanner;
         if (wb && performance.now() < wb.until) {
           const k = (wb.until - performance.now()) / 2400;
           ctx.globalAlpha = Math.min(1, k * 2.5);
-          ctx.font = 'bold 44px Cairo, sans-serif'; ctx.fillStyle = '#ffd32a'; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.lineWidth = 6;
+          let fs = 44; ctx.font = 'bold 44px Cairo, sans-serif'; const tw = ctx.measureText(wb.text).width; if (tw > innerWidth - 30) { fs = Math.floor(44 * (innerWidth - 30) / tw); ctx.font = 'bold ' + fs + 'px Cairo, sans-serif'; } ctx.fillStyle = '#ffd32a'; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.lineWidth = 6;
           ctx.strokeText(wb.text, innerWidth / 2, innerHeight * 0.3); ctx.fillText(wb.text, innerWidth / 2, innerHeight * 0.3);
           ctx.globalAlpha = 1;
         }
