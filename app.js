@@ -8,7 +8,7 @@
   const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
   const $ = (id) => document.getElementById(id);
-  const screens = ['loading', 'profile', 'home', 'lobby', 'game', 'results', 'leaderboard', 'friends', 'how', 'rooms', 'stats'];
+  const screens = ['shop', 'loading', 'profile', 'home', 'lobby', 'game', 'results', 'leaderboard', 'friends', 'how', 'rooms', 'stats'];
 
   let db = null, auth = null, uid = null;
   let profile = null;       // {name, avatar}
@@ -106,6 +106,28 @@
     $('btn-leaderboard').onclick = () => { showLeaderboard('wins'); };
     $('btn-rooms').onclick = showRooms;
     $('btn-stats').onclick = showStats;
+    window.ARENA_SKINS = { gold: '#ffd32a', green: '#2ed573', purple: '#a55eea', fire: '#ff6b35', rainbow: 'rainbow' };
+    const SKIN_LIST = [['gold', '🟡 ذهبي', 0], ['green', '🟢 أخضر', 30], ['purple', '🟣 بنفسجي', 60], ['fire', '🔥 ناري', 100], ['rainbow', '🌈 قوس قزح', 200]];
+    const coinsNow = () => { try { return +localStorage.getItem('arena_coins') || 0; } catch (e) { return 0; } };
+    const ownedSkins = () => { try { return JSON.parse(localStorage.getItem('arena_skins') || '["gold"]'); } catch (e) { return ['gold']; } };
+    function updShopBtn() { $('btn-shop').textContent = '🛍️ المتجر (🪙 ' + coinsNow() + ')'; }
+    function renderShop() {
+      const own = ownedSkins(); const cur = localStorage.getItem('arena_skin') || 'gold';
+      $('shop-coins').textContent = '🪙 ' + coinsNow();
+      $('shop-list').innerHTML = '';
+      SKIN_LIST.forEach(([k, label, price]) => {
+        const row = document.createElement('div'); row.className = 'shop-row';
+        const col = window.ARENA_SKINS[k] === 'rainbow' ? 'linear-gradient(90deg,red,orange,yellow,green,cyan,blue,violet)' : window.ARENA_SKINS[k];
+        row.innerHTML = '<span class="shop-dot" style="background:' + col + '"></span><b>' + label + '</b>';
+        const bt = document.createElement('button'); bt.className = 'btn btn-ghost shop-btn';
+        if (own.indexOf(k) >= 0) { bt.textContent = cur === k ? '✅ مستخدم' : 'استخدم'; bt.onclick = () => { localStorage.setItem('arena_skin', k); renderShop(); }; }
+        else { bt.textContent = '🪙 ' + price; bt.onclick = () => { if (coinsNow() < price) { toast('عملاتك مش كفاية'); return; } localStorage.setItem('arena_coins', String(coinsNow() - price)); own.push(k); localStorage.setItem('arena_skins', JSON.stringify(own)); localStorage.setItem('arena_skin', k); updShopBtn(); renderShop(); toast('اشتريت ' + label); }; }
+        row.appendChild(bt); $('shop-list').appendChild(row);
+      });
+    }
+    $('btn-shop').onclick = () => { renderShop(); show('shop'); };
+    $('btn-back-from-shop').onclick = () => { updShopBtn(); show('home'); };
+    updShopBtn(); setInterval(updShopBtn, 4000);
     $('btn-gren').onclick = () => { if (window.ArenaGame && ArenaGame.running) ArenaGame.throwGrenade(); };
     $('btn-dash').onclick = () => { if (window.ArenaGame && ArenaGame.running) ArenaGame.dash(); };
     const diffNames = { easy: 'سهل', normal: 'عادي', hard: 'صعب' };
@@ -552,6 +574,7 @@
     if (isHost) {
       setTimeout(() => {
         if (!roomCode) return;
+        db.ref('rooms/' + roomCode + '/gems').remove().catch(() => {});
         const updates = { state: 'lobby' };
         db.ref('rooms/' + roomCode + '/meta').update(updates).then(() => {
           return db.ref('rooms/' + roomCode + '/players').once('value');
