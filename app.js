@@ -519,6 +519,28 @@
         <span class="r-score">${ArenaGame.mode === 'zone' ? '🎯 ' + (r.zpts || 0) + ' | ' : ''}☠️ ${r.kills} | 💀 ${r.deaths}</span>`;
       list.appendChild(d);
     });
+    (function () {
+      const rs = ArenaGame.rs || {};
+      const acc = rs.shots ? Math.round(100 * Math.min(rs.hits, rs.shots) / rs.shots) : 0;
+      const me = rows.find((r) => r.uid === uid) || { kills: 0, deaths: 0 };
+      const badges = [];
+      if (rs.shots >= 8 && acc >= 50) badges.push('🎯 قنّاص');
+      if (rs.gren >= 2) badges.push('💣 مفجّر');
+      if (rs.dash >= 5) badges.push('💨 هارب');
+      if (rs.pick >= 3) badges.push('🎁 جامع');
+      if (rs.streak >= 3) badges.push('🔥 سلسلة ' + rs.streak);
+      if (me.kills >= 5) badges.push('☠️ سفّاح');
+      if (me.deaths === 0 && me.kills > 0) badges.push('🛡️ ما اتقتلش');
+      if (ArenaGame.wave > 1) badges.push('🌊 موجة ' + ArenaGame.wave);
+      $('results-awards').innerHTML = '<h3>📊 أداءك في الجولة</h3><div class="aw-grid">' +
+        '<div><b>' + (rs.shots || 0) + '</b><small>طلقات</small></div>' +
+        '<div><b>' + acc + '%</b><small>دقة</small></div>' +
+        '<div><b>' + (rs.gren || 0) + '</b><small>قنابل</small></div>' +
+        '<div><b>' + (rs.dash || 0) + '</b><small>داش</small></div>' +
+        '<div><b>' + (rs.pick || 0) + '</b><small>قدرات</small></div>' +
+        '<div><b>' + (me.kills || 0) + '</b><small>قتلات</small></div></div>' +
+        (badges.length ? '<div class="aw-badges">' + badges.map((b) => '<span>' + b + '</span>').join('') + '</div>' : '<p class="subtitle">اشتغل أكتر عشان تاخد أوسمة</p>');
+    })();
     show('results');
     spawnConfetti();
 
