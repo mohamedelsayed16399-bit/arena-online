@@ -195,7 +195,7 @@
     handleEvent(e) {
       if (!e || !e.t) return;
       if (e.t === 'shoot') {
-        if (!this.bullets.some((b) => b.id === e.id)) this.bullets.push({ id: e.id, uid: e.uid, x: e.x, y: e.y, dx: e.dx, dy: e.dy, age: 0 });
+        if (!this.bullets.some((b) => b.id === e.id)) this.bullets.push({ id: e.id, uid: e.uid, x: e.x, y: e.y, dx: e.dx, dy: e.dy, age: 0, life: e.l || 0 });
         if (e.uid !== this.me.uid) Sfx.shoot(0.25);
       } else if (e.t === 'hit') {
         // شيل الطلقة اللي أصابت
@@ -395,19 +395,21 @@
       const now = performance.now();
       const rapid = this.weapon === 'rapid' && now < this.weaponUntil;
       const triple = this.weapon === 'triple' && now < this.weaponUntil;
-      if (now - this.lastFire < (rapid ? 130 : FIRE_COOLDOWN) || !this.myAlive) return;
+      const shotgun = this.weapon === 'shotgun' && now < this.weaponUntil;
+      if (now - this.lastFire < (rapid ? 130 : shotgun ? 520 : FIRE_COOLDOWN) || !this.myAlive) return;
       this.lastFire = now; this.rs.shots++;
-      const angs = triple ? [-0.22, 0, 0.22] : [0];
+      const angs = shotgun ? [-0.4, -0.2, 0, 0.2, 0.4] : triple ? [-0.22, 0, 0.22] : [0];
+      if (shotgun) { this.shakeUntil = Math.max(this.shakeUntil, now + 120); this.burst(this.myX + Math.cos(this.myAngle) * 30, this.myY + Math.sin(this.myAngle) * 30, '#ffa502', 10, 260); }
       angs.forEach((off, k) => {
-        const a = this.myAngle + off;
+        const a = this.myAngle + off + (shotgun ? (Math.random() - 0.5) * 0.08 : 0);
         const id = this.me.uid.slice(0, 4) + '_' + now + '_' + k + Math.floor(Math.random() * 999);
         const dx = Math.cos(a), dy = Math.sin(a);
         const bx = this.myX + dx * (PLAYER_R + 6), by = this.myY + dy * (PLAYER_R + 6);
-        this.bullets.push({ id, uid: this.me.uid, x: bx, y: by, dx, dy, age: 0 });
+        this.bullets.push({ id, uid: this.me.uid, x: bx, y: by, dx, dy, age: 0, life: shotgun ? 0.5 : 0 });
         this.db.ref('rooms/' + this.roomCode + '/events').push({
           t: 'shoot', id, uid: this.me.uid,
           x: Math.round(bx), y: Math.round(by),
-          dx: Math.round(dx * 1000) / 1000, dy: Math.round(dy * 1000) / 1000,
+          dx: Math.round(dx * 1000) / 1000, dy: Math.round(dy * 1000) / 1000, l: shotgun ? 0.5 : 0,
           ts: firebase.database.ServerValue.TIMESTAMP,
         }).catch(() => {});
       });
@@ -540,7 +542,7 @@
           this.lastPickupSpawn = nowS;
           const rnd = mulberry32(((nowS & 0x7fffffff) >>> 0) ^ this.seed);
           const p = this.freeSpot(rnd);
-          const types = ['hp', 'speed', 'shield', 'rapid', 'triple'];
+          const types = ['hp', 'speed', 'shield', 'rapid', 'triple', 'shotgun'];
           const type = types[Math.floor(rnd() * types.length)];
           this.db.ref('rooms/' + this.roomCode + '/pickups').push({ x: Math.round(p.x), y: Math.round(p.y), t: type }).catch(() => {});
         }
@@ -671,7 +673,7 @@
         b.x += b.dx * BULLET_SPEED * dt;
         b.y += b.dy * BULLET_SPEED * dt;
         b.age += dt;
-        let dead = b.age > BULLET_LIFE || b.x < 0 || b.x > WORLD || b.y < 0 || b.y > WORLD;
+        let dead = b.age > (b.life || BULLET_LIFE) || b.x < 0 || b.x > WORLD || b.y < 0 || b.y > WORLD;
         if (!dead) {
           for (const br of this.barrels) {
             if (!br.dead && Math.hypot(b.x - br.x, b.y - br.y) < 26) {
@@ -726,7 +728,7 @@
             if (this.myHp <= 0) { this.burst(this.myX, this.myY, '#ffd32a', 30, 320); this.die(b.uid); }
           }
         }
-        if (dead) { if (b.age <= BULLET_LIFE) this.burst(b.x, b.y, '#ffd32a', 4, 90); this.bullets.splice(i, 1); }
+        if (dead) { if (b.age <= (b.life || BULLET_LIFE)) this.burst(b.x, b.y, '#ffd32a', 4, 90); this.bullets.splice(i, 1); }
       }
 
       // تنعيم حركة اللاعبين التانيين
@@ -796,6 +798,9 @@
           } else if (type === 'triple') {
             this.weapon = 'triple'; this.weaponUntil = performance.now() + 10000;
             this.onFeed('🔱 طلقة ثلاثية ١٠ ثواني!');
+          } else if (type === 'shotgun') {
+            this.weapon = 'shotgun'; this.weaponUntil = performance.now() + 10000;
+            this.onFeed('💥 شوتجن ١٠ ثواني! ٥ طلقات في الضربة');
           } else if (type === 'shield') {
             this.shieldUntil = performance.now() + 5000;
             this.onFeed('🛡️ درع ٥ ثواني!');
@@ -914,7 +919,7 @@
       for (const pid in this.pickups) {
         const pk = this.pickups[pid];
         const type = pk.t || 'hp';
-        const col = type === 'speed' ? '#ffa502' : type === 'shield' ? '#1e90ff' : type === 'rapid' ? '#a55eea' : type === 'triple' ? '#fd79a8' : '#2ed573';
+        const col = type === 'speed' ? '#ffa502' : type === 'shield' ? '#1e90ff' : type === 'rapid' ? '#a55eea' : type === 'triple' ? '#fd79a8' : type === 'shotgun' ? '#ff6348' : '#2ed573';
         ctx.fillStyle = col;
         ctx.shadowColor = col; ctx.shadowBlur = 12;
         roundRect(ctx, pk.x - 13, pk.y - 13, 26, 26, 7);
@@ -927,7 +932,7 @@
         } else {
           ctx.font = '16px serif';
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText(type === 'speed' ? '👟' : type === 'rapid' ? '🔫' : type === 'triple' ? '🔱' : '🛡️', pk.x, pk.y + 1);
+          ctx.fillText(type === 'speed' ? '👟' : type === 'rapid' ? '🔫' : type === 'triple' ? '🔱' : type === 'shotgun' ? '💥' : '🛡️', pk.x, pk.y + 1);
         }
       }
 
@@ -1097,8 +1102,8 @@
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       const wl = this.weaponUntil - performance.now();
       if (this.myAlive && wl > 0) {
-        ctx.font = 'bold 14px Cairo, sans-serif'; ctx.fillStyle = this.weapon === 'rapid' ? '#a55eea' : '#fd79a8';
-        ctx.fillText((this.weapon === 'rapid' ? '🔫 رشاش ' : '🔱 ثلاثي ') + Math.ceil(wl / 1000) + 'ث', innerWidth / 2, innerHeight - 100);
+        ctx.font = 'bold 14px Cairo, sans-serif'; ctx.fillStyle = this.weapon === 'rapid' ? '#a55eea' : this.weapon === 'shotgun' ? '#ff6348' : '#fd79a8';
+        ctx.fillText((this.weapon === 'rapid' ? '🔫 رشاش ' : this.weapon === 'shotgun' ? '💥 شوتجن ' : '🔱 ثلاثي ') + Math.ceil(wl / 1000) + 'ث', innerWidth / 2, innerHeight - 100);
       }
       if (!this.myAlive && this.specName) {
         ctx.font = 'bold 16px Cairo, sans-serif'; ctx.fillStyle = '#fff';
