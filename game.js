@@ -305,6 +305,7 @@
 
     explodeGrenade(q) {
       const R = 120;
+      Sfx.boom();
       this.rings.push({ x: q.tx, y: q.ty, age: 0, life: 0.55, R });
       this.burst(q.tx, q.ty, '#ff9f43', 40, 420);
       this.burst(q.tx, q.ty, '#ffd32a', 24, 300);
@@ -342,7 +343,7 @@
       if (this.wave % 5 === 0) {
         const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + 999));
         this.bots.push({ id: 'bot99', name: '👑 الزعيم', boss: true, x: p.x, y: p.y, hp: 300, alive: true, angle: 0, lastFire: nowB + 1500, respawnAt: 0, phase: 0, color: 1 });
-        this.onFeed('👑 زعيم ظهر! ٣٠٠ صحة وبيضرب ٣ طلقات');
+        this.onFeed('👑 زعيم ظهر! ٣٠٠ صحة وبيضرب ٣ طلقات'); Sfx.horn();
       }
       for (let k = 0; k < n; k++) {
         const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 77));
@@ -354,6 +355,7 @@
       if (br.dead) return;
       br.dead = true;
       const R = 140;
+      Sfx.boom();
       this.rings.push({ x: br.x, y: br.y, age: 0, life: 0.6, R });
       this.burst(br.x, br.y, '#ff6b35', 44, 440);
       this.burst(br.x, br.y, '#ffd32a', 22, 300);
@@ -576,7 +578,9 @@
       // الريسبون
       if (!this.myAlive && performance.now() >= this.respawnAt) {
         const rnd = mulberry32(Date.now() & 0xffff);
-        const p = this.freeSpot(rnd);
+        let p = this.freeSpot(rnd);
+        const stR = this.stormInfo();
+        if (stR) { for (let tr = 0; tr < 30; tr++) { const an = rnd() * 6.283, rr = rnd() * stR.r * 0.8; const cx = clamp(stR.x + Math.cos(an) * rr, 80, WORLD - 80), cy = clamp(stR.y + Math.sin(an) * rr, 80, WORLD - 80); if (!this.obstacles.some((o) => circleRect(cx, cy, PLAYER_R + 8, o))) { p = { x: cx, y: cy }; break; } } }
         this.myX = p.x; this.myY = p.y; this.myHp = MAX_HP; this.myAlive = true;
         this.protectedUntil = performance.now() + 2000; // حماية ثانيتين بعد الريسبون
         this.db.ref('rooms/' + this.roomCode + '/players/' + this.me.uid)
@@ -615,6 +619,7 @@
             }
           }
           this.myX = nx; this.myY = ny;
+          if (Math.random() < 0.55) this.fx.push({ x: nx, y: ny, vx: 0, vy: 0, life: 0.7, age: 0, c: PALETTE[(this.me.color || 0) % PALETTE.length], r: 6 });
         }
 
         // التصويب
@@ -658,7 +663,7 @@
           if (!this.wasStorm) { this.wasStorm = true; this.onFeed('🌪️ انت برّه الدايرة! ارجع جوّه'); }
           this.stormAcc = (this.stormAcc || 0) + dt;
           if (this.stormAcc >= 0.5) {
-            this.stormAcc -= 0.5; this.myHp -= 4; this.onHud(this.myHp); this.writeSelf(true);
+            this.stormAcc -= 0.5; Sfx.tick(); this.myHp -= 4; this.onHud(this.myHp); this.writeSelf(true);
             this.burst(this.myX, this.myY, '#c0392b', 6, 160); this.hitFlashUntil = performance.now() + 150;
             if (this.myHp <= 0) { this.burst(this.myX, this.myY, '#ffd32a', 30, 320); this.die('storm'); }
           }
@@ -707,6 +712,18 @@
         if (dist > 380) { mvx = tx; mvy = ty; }
         else if (dist < 220) { mvx = -tx; mvy = -ty; }
         else { const s = Math.sin(nowB / 900 + bt.phase) > 0 ? 1 : -1; mvx = -ty * s; mvy = tx * s; }
+        const stB = this.stormInfo();
+        if (stB && Math.hypot(bt.x - stB.x, bt.y - stB.y) > stB.r - 20) {
+          const dd = Math.hypot(stB.x - bt.x, stB.y - bt.y) || 1; mvx = (stB.x - bt.x) / dd; mvy = (stB.y - bt.y) / dd;
+          if (Math.hypot(bt.x - stB.x, bt.y - stB.y) > stB.r) { bt.hp -= 8 * dt; if (Math.random() < 0.1) this.burst(bt.x, bt.y, '#c0392b', 2, 80); if (bt.hp <= 0) { bt.alive = false; bt.respawnAt = performance.now() + 3000; this.burst(bt.x, bt.y, '#ffd32a', 28, 300); this.onFeed('🌪️ العاصفة قضت على ' + bt.name); continue; } }
+        }
+        for (const hz of (this.hazards || [])) {
+          if (hz.type !== 'lava') continue;
+          const hd = Math.hypot(bt.x - hz.x, bt.y - hz.y);
+          if (hd < hz.r + 40) { const hh = hd || 1; mvx = (bt.x - hz.x) / hh; mvy = (bt.y - hz.y) / hh; }
+          if (hd < hz.r) { bt.hp -= 12 * dt; if (Math.random() < 0.15) this.burst(bt.x, bt.y, '#ff6b35', 2, 100); if (bt.hp <= 0) { bt.alive = false; bt.respawnAt = performance.now() + 3000; this.burst(bt.x, bt.y, '#ffd32a', 28, 300); this.onFeed('🌋 الحمم قضت على ' + bt.name); break; } }
+        }
+        if (!bt.alive) continue;
         let nx = clamp(bt.x + mvx * lvl.spd * dt, PLAYER_R, WORLD - PLAYER_R), ny = clamp(bt.y + mvy * lvl.spd * dt, PLAYER_R, WORLD - PLAYER_R);
         for (const o of this.obstacles) {
           if (circleRect(nx, ny, PLAYER_R, o)) {
@@ -1271,6 +1288,9 @@
     shoot(v) { this.beep(240, 0.08, 'square', 0.05 * (v || 1)); },
     hit() { this.beep(120, 0.15, 'sawtooth', 0.08); },
     kill() { this.beep(440, 0.1, 'square', 0.07); setTimeout(() => this.beep(220, 0.2, 'square', 0.07), 110); },
+    boom() { this.beep(70, 0.35, 'sawtooth', 0.12); setTimeout(() => this.beep(45, 0.4, 'square', 0.1), 60); },
+    horn() { this.beep(180, 0.5, 'sawtooth', 0.09); setTimeout(() => this.beep(135, 0.7, 'sawtooth', 0.09), 250); },
+    tick() { this.beep(900, 0.05, 'square', 0.04); },
     win() { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => this.beep(f, 0.18, 'triangle', 0.08), i * 130)); },
   };
 
