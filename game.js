@@ -50,7 +50,7 @@
     respawnAt: 0,
     pickups: {}, lastPickupSpawn: 0,
     muzzleUntil: 0, hitFlashUntil: 0, lastHpShown: null,
-    speedUntil: 0, shieldUntil: 0, protectedUntil: 0, weaponUntil: 0, weapon: '', fx: [], dashUntil: 0, dashCd: 0, rs: { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }, barrels: [], wave: 1, waveAt: 0, waveBanner: null, gren: [], grenCd: 0, rings: [], gcount: 0, dashX: 0, dashY: 0, mode: 'classic', zpts: 0, zoneAcc: 0, zoneCache: null, bots: [], botCheckAt: 0, botAnnounced: false, shakeUntil: 0, specIdx: 0, lastBurst: 0, ult: 0, meteors: [], up: { dmg: 0, spd: 0, rate: 0, steal: 0, arm: 0 }, upDone: false, pickWait: false,
+    speedUntil: 0, shieldUntil: 0, protectedUntil: 0, weaponUntil: 0, weapon: '', fx: [], dashUntil: 0, dashCd: 0, rs: { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }, barrels: [], wave: 1, waveAt: 0, waveBanner: null, gren: [], grenCd: 0, rings: [], gcount: 0, dashX: 0, dashY: 0, mode: 'classic', zpts: 0, zoneAcc: 0, zoneCache: null, bots: [], botCheckAt: 0, botAnnounced: false, shakeUntil: 0, specIdx: 0, lastBurst: 0, ult: 0, meteors: [], up: { dmg: 0, spd: 0, rate: 0, steal: 0, arm: 0, drone: 0 }, upDone: false, pickWait: false,
     rafId: null, lastTs: 0,
     onRoundEnd: null, onFeed: null, onHud: null,
     seed: 1,
@@ -80,7 +80,7 @@
       this.myX = p.x; this.myY = p.y; this.myAngle = 0;
       this.myHp = MAX_HP; this.myAlive = true;
       this.lastHpShown = MAX_HP; this.muzzleUntil = 0; this.hitFlashUntil = 0;
-      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.rs = { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }; this.barrels = []; this.wave = 1; this.waveAt = 0; this.waveBanner = null; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.specIdx = 0; this.ult = 0; this.meteors = []; this.up = { dmg: 0, spd: 0, rate: 0, steal: 0, arm: 0 }; this.upDone = false; this.pickWait = false; this.hideUpgrades();
+      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.rs = { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }; this.barrels = []; this.wave = 1; this.waveAt = 0; this.waveBanner = null; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.specIdx = 0; this.ult = 0; this.meteors = []; this.up = { dmg: 0, spd: 0, rate: 0, steal: 0, arm: 0, drone: 0 }; this.upDone = false; this.pickWait = false; this.hideUpgrades();
       this.protectedUntil = performance.now() + 2000; // حماية بداية الجولة
       this.writeSelf(true);
       this.onFeed('🗺️ ساحة ' + this.theme.name);
@@ -401,6 +401,7 @@
         { k: 'spd', i: '👟', t: 'سرعة', d: '+١٠٪ سرعة حركة' },
         { k: 'rate', i: '⚡', t: 'تصويب أسرع', d: '-١٥٪ وقت بين الطلقات' },
         { k: 'steal', i: '🩸', t: 'سرقة صحة', d: 'كل إصابة بتشفيك' },
+        { k: 'drone', i: '🚁', t: 'درون مساعد', d: 'درون بيضرب أقرب بوت' },
         { k: 'arm', i: '🛡️', t: 'دروع', d: '-١٨٪ ضرر من البوتات' }
       ];
       const pick = ALL.slice().sort(() => Math.random() - 0.5).slice(0, 3);
@@ -436,7 +437,10 @@
       }
       for (let k = 0; k < n; k++) {
         const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 77));
-        this.bots.push({ id: 'bot' + k, name: '🤖 بوت ' + (k + 1), x: p.x, y: p.y, hp: MAX_HP, alive: true, angle: 0, lastFire: nowB + 1200 + k * 400, respawnAt: 0, phase: Math.random() * 6, color: 3 + (k % 5) });
+        let cls = '';
+        if (this.wave >= 3 && k % 4 === 1) cls = 'sniper'; else if (this.wave >= 4 && k % 4 === 2) cls = 'tank'; else if (this.wave >= 5 && k % 4 === 3) cls = 'healer';
+        const CI = { sniper: ['🎯', '🎯 قناص', 70], tank: ['🛡️', '🛡️ دبابة', 220], healer: ['💚', '💚 مداوي', 70] }[cls];
+        this.bots.push({ cls, av: CI ? CI[0] : '🤖', max: CI ? CI[2] : MAX_HP, id: 'bot' + k, name: CI ? CI[1] + ' ' + (k + 1) : '🤖 بوت ' + (k + 1), x: p.x, y: p.y, hp: CI ? CI[2] : MAX_HP, alive: true, angle: 0, lastFire: nowB + 1200 + k * 400, respawnAt: 0, phase: Math.random() * 6, color: 3 + (k % 5) });
       }
     },
 
@@ -833,6 +837,11 @@
         if (dist > 380) { mvx = tx; mvy = ty; }
         else if (dist < 220) { mvx = -tx; mvy = -ty; }
         else { const s = Math.sin(nowB / 900 + bt.phase) > 0 ? 1 : -1; mvx = -ty * s; mvy = tx * s; }
+        if (bt.cls === 'sniper') { if (dist > 800) { mvx = tx; mvy = ty; } else if (dist < 520) { mvx = -tx; mvy = -ty; } else { const s2 = Math.sin(nowB / 1500 + bt.phase) > 0 ? 1 : -1; mvx = -ty * s2; mvy = tx * s2; } }
+        if (bt.cls === 'healer') {
+          if (dist < 450) { mvx = -tx; mvy = -ty; } else if (dist > 700) { mvx = tx; mvy = ty; }
+          for (const o2 of this.bots) { if (o2 !== bt && o2.alive && o2.hp < (o2.max || MAX_HP) && Math.hypot(o2.x - bt.x, o2.y - bt.y) < 280) { o2.hp = Math.min(o2.max || MAX_HP, o2.hp + 14 * dt); if (Math.random() < 0.08) this.burst(o2.x, o2.y, '#2ed573', 2, 60); } }
+        }
         const stB = this.stormInfo();
         if (stB && Math.hypot(bt.x - stB.x, bt.y - stB.y) > stB.r - 20) {
           const dd = Math.hypot(stB.x - bt.x, stB.y - bt.y) || 1; mvx = (stB.x - bt.x) / dd; mvy = (stB.y - bt.y) / dd;
@@ -870,7 +879,7 @@
           this.rings.push({ x: bt.x, y: bt.y, age: 0, life: 0.5, R: 90 });
           this.burst(bt.x, bt.y, '#a55eea', 20, 320); Sfx.boom();
         }
-        let nx = clamp(bt.x + mvx * lvl.spd * dt, PLAYER_R, WORLD - PLAYER_R), ny = clamp(bt.y + mvy * lvl.spd * dt, PLAYER_R, WORLD - PLAYER_R);
+        let nx = clamp(bt.x + mvx * lvl.spd * (bt.cls === 'tank' ? 0.6 : 1) * dt, PLAYER_R, WORLD - PLAYER_R), ny = clamp(bt.y + mvy * lvl.spd * (bt.cls === 'tank' ? 0.6 : 1) * dt, PLAYER_R, WORLD - PLAYER_R);
         for (const o of this.obstacles) {
           if (circleRect(nx, ny, PLAYER_R, o)) {
             if (!circleRect(nx, bt.y, PLAYER_R, o)) ny = bt.y;
@@ -879,10 +888,10 @@
           }
         }
         bt.x = nx; bt.y = ny;
-        if (this.myAlive && dist < 650 && nowB - bt.lastFire > lvl.fire) {
+        if (this.myAlive && bt.cls !== 'healer' && dist < (bt.cls === 'sniper' ? 950 : 650) && nowB - bt.lastFire > lvl.fire * (bt.cls === 'sniper' ? 1.7 : 1)) {
           bt.lastFire = nowB + Math.random() * 500;
-          const a = bt.angle + (Math.random() - 0.5) * lvl.err;
-          (bt.boss ? [-0.25, 0, 0.25] : [0]).forEach((off, q) => { const a2 = a + off; this.bullets.push({ id: bt.id + '_' + Math.floor(nowB) + '_' + q, uid: bt.id, x: bt.x + Math.cos(a2) * (PLAYER_R + 6), y: bt.y + Math.sin(a2) * (PLAYER_R + 6), dx: Math.cos(a2), dy: Math.sin(a2), age: 0 }); });
+          const a = bt.angle + (Math.random() - 0.5) * lvl.err * (bt.cls === 'sniper' ? 0.15 : 1);
+          (bt.boss ? [-0.25, 0, 0.25] : bt.cls === 'tank' ? [-0.1, 0.1] : [0]).forEach((off, q) => { const a2 = a + off; this.bullets.push({ life: bt.cls === 'sniper' ? 1.5 : 0, id: bt.id + '_' + Math.floor(nowB) + '_' + q, uid: bt.id, x: bt.x + Math.cos(a2) * (PLAYER_R + 6), y: bt.y + Math.sin(a2) * (PLAYER_R + 6), dx: Math.cos(a2), dy: Math.sin(a2), age: 0 }); });
         }
       }
 
@@ -950,6 +959,19 @@
         if (dead) { if (b.age <= (b.life || BULLET_LIFE)) this.burst(b.x, b.y, '#ffd32a', 4, 90); this.bullets.splice(i, 1); }
       }
 
+      // الدرون
+      if (this.up.drone && this.myAlive && this.bots.length) {
+        const nd = performance.now();
+        if (nd >= (this.droneAt || 0)) {
+          this.droneAt = nd + 1100;
+          for (let j = 0; j < this.up.drone; j++) {
+            const da = nd / 700 + j * (6.283 / this.up.drone), dx0 = this.myX + Math.cos(da) * 52, dy0 = this.myY + Math.sin(da) * 52;
+            let best = null, bd = 650;
+            for (const bt of this.bots) { if (bt.alive) { const dd = Math.hypot(bt.x - dx0, bt.y - dy0); if (dd < bd) { bd = dd; best = bt; } } }
+            if (best) { const aa = Math.atan2(best.y - dy0, best.x - dx0); this.bullets.push({ id: 'drn' + Math.floor(nd) + j, uid: this.me.uid, x: dx0, y: dy0, dx: Math.cos(aa), dy: Math.sin(aa), age: 0, life: 0.9 }); }
+          }
+        }
+      }
       // النيازك
       for (let i = this.meteors.length - 1; i >= 0; i--) {
         const mt = this.meteors[i];
@@ -1325,7 +1347,19 @@
         if (hp > 0) { roundRect(ctx, x - 22, y - PLAYER_R - 10, 44 * Math.max(0, hp) / MAX_HP, 6, 3); ctx.fill(); }
         ctx.globalAlpha = 1;
       };
-      for (const bt of this.bots) drawPlayer(bt.id, { name: bt.name, avatar: bt.boss ? '👹' : '🤖', color: bt.color, x: bt.x, y: bt.y, alive: bt.alive, hp: Math.min(bt.hp, MAX_HP), angle: bt.angle }, false);
+      if (this.up.drone && this.myAlive) {
+        for (let j = 0; j < this.up.drone; j++) {
+          const da = performance.now() / 700 + j * (6.283 / this.up.drone), px = this.myX + Math.cos(da) * 52, py = this.myY + Math.sin(da) * 52;
+          ctx.save(); ctx.shadowColor = '#18dcff'; ctx.shadowBlur = 12; ctx.font = '22px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🚁', px, py); ctx.restore();
+        }
+      }
+      for (const bt of this.bots) {
+        if (bt.cls === 'sniper' && bt.alive && this.myAlive && Math.hypot(this.myX - bt.x, this.myY - bt.y) < 950) {
+          ctx.save(); ctx.globalAlpha = 0.25 + 0.2 * Math.sin(performance.now() / 120); ctx.strokeStyle = '#ff4757'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(bt.x, bt.y); ctx.lineTo(this.myX, this.myY); ctx.stroke(); ctx.restore();
+        }
+        if (bt.cls === 'healer' && bt.alive) { ctx.save(); ctx.globalAlpha = 0.18 + 0.1 * Math.sin(performance.now() / 300); ctx.strokeStyle = '#2ed573'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(bt.x, bt.y, 280, 0, 6.283); ctx.stroke(); ctx.restore(); }
+      }
+      for (const bt of this.bots) drawPlayer(bt.id, { name: bt.name, avatar: bt.boss ? '👹' : (bt.av || '🤖'), color: bt.color, x: bt.x, y: bt.y, alive: bt.alive, hp: Math.min(MAX_HP, bt.hp * MAX_HP / (bt.max || MAX_HP)), angle: bt.angle }, false);
       for (const bt of this.bots) {
         if (!bt.boss || !bt.alive) continue;
         const bc = bt.boss4 ? '#ff6b35' : bt.boss3 ? '#18dcff' : bt.boss2 ? '#a55eea' : '#ff4757'; ctx.strokeStyle = bc; ctx.lineWidth = 5; ctx.shadowColor = bc; ctx.shadowBlur = 16;
