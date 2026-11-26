@@ -21,6 +21,7 @@
     { name: 'فضاء', bg0: '#160b2e', bg1: '#070312', ob: '#3b2a73', obs: 'rgba(190,150,255,0.28)' },
   ];
   const BOT_LEVELS = { easy: { fire: 1600, err: 0.9, spd: 110 }, normal: { fire: 950, err: 0.45, spd: 150 }, hard: { fire: 600, err: 0.18, spd: 190 } };
+  const MODS = { dark: { t: '🌑 ظلام: الرؤية محدودة' }, fast: { t: '⚡ بوتات سريعة +٤٠٪' }, rage: { t: '😡 بوتات غضبانة: ضرر ×١٫٥' }, loot: { t: '💰 غنيمة: عملات ×٢' }, swarm: { t: '🐝 سرب: بوتات أكتر وصحتها أقل' } };
   const PALETTE = ['#ff4757', '#2ed573', '#1e90ff', '#ffa502', '#eccc68', '#7bed9f', '#70a1ff', '#ff6b81'];
 
   function mulberry32(a) {
@@ -81,7 +82,7 @@
       this.myX = p.x; this.myY = p.y; this.myAngle = 0;
       this.myHp = MAX_HP; this.myAlive = true;
       this.lastHpShown = MAX_HP; this.muzzleUntil = 0; this.hitFlashUntil = 0;
-      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.rs = { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }; this.barrels = []; this.wave = 1; this.waveAt = 0; this.waveBanner = null; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.wasHole = false; this.specIdx = 0; this.ult = 0; this.meteors = []; this.up = { dmg: 0, spd: 0, rate: 0, steal: 0, arm: 0, drone: 0 }; this.upDone = false; this.pickWait = false; this.hideUpgrades();
+      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.rs = { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }; this.barrels = []; this.wave = 1; this.waveAt = 0; this.waveBanner = null; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.wasHole = false; this.specIdx = 0; this.mod = ''; this.ult = 0; this.meteors = []; this.up = { dmg: 0, spd: 0, rate: 0, steal: 0, arm: 0, drone: 0 }; this.upDone = false; this.pickWait = false; this.hideUpgrades();
       this.protectedUntil = performance.now() + 2000; // حماية بداية الجولة
       this.writeSelf(true);
       this.onFeed('🗺️ ساحة ' + this.theme.name);
@@ -306,7 +307,7 @@
       }).catch(() => {});
     },
 
-    coin(n) { try { localStorage.setItem('arena_coins', String((+localStorage.getItem('arena_coins') || 0) + n)); } catch (err) { /* ignore */ } },
+    coin(n) { if (this.mod === 'loot' && this.bots.length) n *= 2; try { localStorage.setItem('arena_coins', String((+localStorage.getItem('arena_coins') || 0) + n)); } catch (err) { /* ignore */ } },
     bulletColor() { try { return (window.ARENA_SKINS || {})[localStorage.getItem('arena_skin') || 'gold'] || '#ffd32a'; } catch (err) { return '#ffd32a'; } },
     ach(type, val) { if (type === 'kill') { this.coin(1); this.ult = Math.min(100, (this.ult || 0) + 20); } else if (type === 'wave') this.ult = Math.min(100, (this.ult || 0) + 30); if (type === 'kill') { /* coin above */ } else if (type === 'wave') this.coin(5); try { if (window.ArenaAch) window.ArenaAch.hit(type, val); } catch (err) { /* ignore */ } },
 
@@ -433,7 +434,10 @@
 
     spawnWave(nowB) {
       const wv = this.bossRush ? [1, 10, 15, 20][(this.wave - 1) % 4] : this.wave, sc = this.bossRush ? 1 + 0.3 * Math.floor((this.wave - 1) / 4) : 1;
-      const n = this.bossRush ? Math.min(4, Math.floor(this.wave / 3)) : Math.min(9, 2 + this.wave);
+      const MK = Object.keys(MODS);
+      this.mod = this.wave >= 2 && !this.bossRush && this.wave % 5 !== 0 && Math.random() < 0.65 ? MK[Math.floor(Math.random() * MK.length)] : '';
+      if (this.mod) { this.onFeed('🎲 تعديل الموجة: ' + MODS[this.mod].t); this.modBanner = { text: MODS[this.mod].t, until: performance.now() + 2600 }; }
+      const n = (this.bossRush ? Math.min(4, Math.floor(this.wave / 3)) : Math.min(9, 2 + this.wave)) + (this.mod === 'swarm' ? 3 : 0);
       this.bots = [];
       this.barrels = [];
       for (let k = 0; k < 6; k++) { const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 131 + 7)); this.barrels.push({ x: p.x, y: p.y, hp: 2, dead: false }); }
@@ -448,7 +452,8 @@
         let cls = '';
         if (this.wave >= 3 && k % 4 === 1) cls = 'sniper'; else if (this.wave >= 4 && k % 4 === 2) cls = 'tank'; else if (this.wave >= 5 && k % 4 === 3) cls = 'healer';
         const CI = { sniper: ['🎯', '🎯 قناص', 70], tank: ['🛡️', '🛡️ دبابة', 220], healer: ['💚', '💚 مداوي', 70] }[cls];
-        this.bots.push({ cls, av: CI ? CI[0] : '🤖', max: CI ? CI[2] : MAX_HP, id: 'bot' + k, name: CI ? CI[1] + ' ' + (k + 1) : '🤖 بوت ' + (k + 1), x: p.x, y: p.y, hp: CI ? CI[2] : MAX_HP, alive: true, angle: 0, lastFire: nowB + 1200 + k * 400, respawnAt: 0, phase: Math.random() * 6, color: 3 + (k % 5) });
+        const swarmHp = this.mod === 'swarm' && !cls ? 50 : 0;
+        this.bots.push({ cls, av: CI ? CI[0] : '🤖', max: CI ? CI[2] : (swarmHp || MAX_HP), id: 'bot' + k, name: CI ? CI[1] + ' ' + (k + 1) : '🤖 بوت ' + (k + 1), x: p.x, y: p.y, hp: CI ? CI[2] : (swarmHp || MAX_HP), alive: true, angle: 0, lastFire: nowB + 1200 + k * 400, respawnAt: 0, phase: Math.random() * 6, color: 3 + (k % 5) });
       }
     },
 
@@ -912,7 +917,7 @@
           this.rings.push({ x: bt.x, y: bt.y, age: 0, life: 0.5, R: 90 });
           this.burst(bt.x, bt.y, '#a55eea', 20, 320); Sfx.boom();
         }
-        let nx = clamp(bt.x + mvx * lvl.spd * (bt.cls === 'tank' ? 0.6 : 1) * dt, PLAYER_R, WORLD - PLAYER_R), ny = clamp(bt.y + mvy * lvl.spd * (bt.cls === 'tank' ? 0.6 : 1) * dt, PLAYER_R, WORLD - PLAYER_R);
+        let nx = clamp(bt.x + mvx * lvl.spd * (bt.cls === 'tank' ? 0.6 : 1) * (this.mod === 'fast' ? 1.4 : 1) * dt, PLAYER_R, WORLD - PLAYER_R), ny = clamp(bt.y + mvy * lvl.spd * (bt.cls === 'tank' ? 0.6 : 1) * (this.mod === 'fast' ? 1.4 : 1) * dt, PLAYER_R, WORLD - PLAYER_R);
         for (const o of this.obstacles) {
           if (circleRect(nx, ny, PLAYER_R, o)) {
             if (!circleRect(nx, bt.y, PLAYER_R, o)) ny = bt.y;
@@ -985,7 +990,7 @@
             }
           } else if (Math.hypot(b.x - this.myX, b.y - this.myY) < PLAYER_R + 4) {
             dead = true;
-            this.myHp -= BULLET_DMG * (String(b.uid).indexOf('bot') === 0 ? Math.pow(0.82, this.up.arm) : 1);
+            this.myHp -= BULLET_DMG * (String(b.uid).indexOf('bot') === 0 ? Math.pow(0.82, this.up.arm) * (this.mod === 'rage' ? 1.5 : 1) : 1);
             this.onHud(this.myHp);
             this.writeSelf(true);
             this.db.ref('rooms/' + this.roomCode + '/events').push({
@@ -1427,10 +1432,21 @@
 
       ctx.restore();
 
+      if (this.bots.length && this.mod === 'dark' && this.myAlive) {
+        const mx0 = this.myX - this.cam.x, my0 = this.myY - this.cam.y;
+        const dg = ctx.createRadialGradient(mx0, my0, 90, mx0, my0, 330); dg.addColorStop(0, 'rgba(0,0,10,0)'); dg.addColorStop(1, 'rgba(0,0,10,0.93)');
+        ctx.fillStyle = dg; ctx.fillRect(0, 0, innerWidth, innerHeight);
+      }
       if (this.bots.length) {
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        if (this.mod) { ctx.font = 'bold 13px Cairo, sans-serif'; ctx.fillStyle = '#ffd32a'; ctx.fillText((MODS[this.mod] || {}).t || '', innerWidth / 2, innerWidth < 641 ? innerHeight - 238 : 100); }
         ctx.font = 'bold 15px Cairo, sans-serif'; ctx.fillStyle = '#7bdff2';
         ctx.fillText('🌊 موجة ' + this.wave + ' | بوتات: ' + this.bots.filter((q) => q.alive).length, innerWidth / 2, innerWidth < 641 ? innerHeight - 215 : 78);
+        const mb = this.modBanner;
+        if (mb && performance.now() < mb.until) {
+          ctx.globalAlpha = Math.min(1, (mb.until - performance.now()) / 600); ctx.font = 'bold 24px Cairo, sans-serif'; ctx.lineWidth = 5; ctx.strokeStyle = '#000'; ctx.fillStyle = '#ffd32a';
+          ctx.strokeText(mb.text, innerWidth / 2, innerHeight * 0.3 + 46); ctx.fillText(mb.text, innerWidth / 2, innerHeight * 0.3 + 46); ctx.globalAlpha = 1;
+        }
         const wb = this.waveBanner;
         if (wb && performance.now() < wb.until) {
           const k = (wb.until - performance.now()) / 2400;
