@@ -1439,10 +1439,12 @@
       }
 
       // مؤثرات
+      if (this._lastHp !== undefined && this.myHp < this._lastHp && this.myAlive) { this.dmgNums = this.dmgNums || []; this.dmgNums.push({ x: this.myX + (Math.random() - 0.5) * 20, y: this.myY - 40, t: '-' + Math.round(this._lastHp - this.myHp), at: performance.now(), big: false, red: true }); }
+      this._lastHp = this.myHp;
       if (this.dmgNums && this.dmgNums.length) {
         const dn = performance.now(); this.dmgNums = this.dmgNums.filter((q) => dn - q.at < 800);
         ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 4; ctx.strokeStyle = '#000';
-        for (const q of this.dmgNums) { const pr = (dn - q.at) / 800; ctx.globalAlpha = 1 - pr * pr; ctx.font = 'bold ' + (q.big ? 22 : 16) + 'px Cairo, sans-serif'; ctx.fillStyle = q.big ? '#ffd32a' : '#ffffff'; const yy = q.y - pr * 36; ctx.strokeText(q.t, q.x, yy); ctx.fillText(q.t, q.x, yy); }
+        for (const q of this.dmgNums) { const pr = (dn - q.at) / 800; ctx.globalAlpha = 1 - pr * pr; ctx.font = 'bold ' + (q.big ? 22 : 16) + 'px Cairo, sans-serif'; ctx.fillStyle = q.red ? '#ff4757' : q.big ? '#ffd32a' : '#ffffff'; const yy = q.y - pr * 36; ctx.strokeText(q.t, q.x, yy); ctx.fillText(q.t, q.x, yy); }
         ctx.restore();
       }
       for (const f of this.fx) {
