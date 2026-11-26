@@ -186,7 +186,7 @@
     handleEvent(e) {
       if (!e || !e.t) return;
       if (e.t === 'shoot') {
-        this.bullets.push({ id: e.id, uid: e.uid, x: e.x, y: e.y, dx: e.dx, dy: e.dy, age: 0 });
+        if (!this.bullets.some((b) => b.id === e.id)) this.bullets.push({ id: e.id, uid: e.uid, x: e.x, y: e.y, dx: e.dx, dy: e.dy, age: 0 });
         if (e.uid !== this.me.uid) Sfx.shoot(0.25);
       } else if (e.t === 'hit') {
         // شيل الطلقة اللي أصابت
