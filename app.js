@@ -225,6 +225,8 @@
     $('tab-wins').onclick = () => showLeaderboard('wins');
     $('tab-kills').onclick = () => showLeaderboard('kills');
     $('tab-points').onclick = () => showLeaderboard('points');
+    $('tab-wave').onclick = () => showLeaderboard('bestWave');
+    $('tab-rush').onclick = () => showLeaderboard('bestRush');
 
     // أصدقاء
     $('btn-add-friend').onclick = addFriend;
@@ -790,6 +792,8 @@
     $('tab-wins').classList.toggle('active', mode === 'wins');
     $('tab-kills').classList.toggle('active', mode === 'kills');
     $('tab-points').classList.toggle('active', mode === 'points');
+    $('tab-wave').classList.toggle('active', mode === 'bestWave');
+    $('tab-rush').classList.toggle('active', mode === 'bestRush');
     const list = $('leaderboard-list');
     list.innerHTML = '<p class="subtitle">بجيب البيانات…</p>';
     db.ref('leaderboard').once('value', (s) => {
@@ -801,14 +805,14 @@
       });
       const key = mode === 'points' ? 'points' : mode;
       rows.sort((a, b) => (b[key] || 0) - (a[key] || 0));
-      const top = rows.slice(0, 20);
+      const top = rows.filter((q) => (mode === 'bestWave' || mode === 'bestRush') ? (q[mode] || 0) > 0 : true).slice(0, 20);
       list.innerHTML = '';
       if (!top.length) {
         list.innerHTML = '<p class="subtitle">لسه مفيش نتايج — كن أول بطل! ⚔️</p>';
         return;
       }
       top.forEach((r, i) => {
-        const val = mode === 'wins' ? '🏆 ' + (r.wins || 0) : mode === 'kills' ? '☠️ ' + (r.kills || 0) : '⭐ ' + r.points;
+        const val = mode === 'bestWave' ? '🌊 ' + (r.bestWave || 0) : mode === 'bestRush' ? '👑 ' + (r.bestRush || 0) : mode === 'wins' ? '🏆 ' + (r.wins || 0) : mode === 'kills' ? '☠️ ' + (r.kills || 0) : '⭐ ' + r.points;
         const d = document.createElement('div');
         d.className = 'lb-row' + (i < 3 ? ' top' : '');
         d.innerHTML = `<span class="lb-rank">#${i + 1}</span>
