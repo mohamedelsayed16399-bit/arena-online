@@ -432,6 +432,7 @@
       if (!this._upKey) { this._upKey = (e) => { if (this.pickWait && this._upChoose && e.key >= '1' && e.key <= '3') { const f = this._upChoose[+e.key - 1]; if (f) f(); } }; window.addEventListener('keydown', this._upKey); }
     },
     teamOf(uid) {
+      if (this.mode === 'coop') return (uid && String(uid).indexOf('bot') !== 0) ? 0 : -1;
       if (this.mode !== 'team' || !uid || String(uid).indexOf('bot') === 0) return -1;
       const ids = Object.keys(this.players).concat([this.me.uid]).filter((v, i, a) => a.indexOf(v) === i).sort();
       const i = ids.indexOf(uid); return i < 0 ? -1 : i % 2;
@@ -844,10 +845,10 @@
       const nowB = performance.now();
       if (nowB >= this.botCheckAt) {
         this.botCheckAt = nowB + 1000;
-        const humans = Object.keys(this.players).length;
+        const humans = this.mode === 'coop' ? 0 : Object.keys(this.players).length;
         if (humans === 0 && this.bots.length === 0) {
           this.spawnWave(nowB);
-          if (!this.botAnnounced) { this.botAnnounced = true; this.onFeed('🌊 انت لوحدك: وضع الموجات! اصمد قد ما تقدر'); this.waveBanner = { text: '🌊 الموجة ١', until: nowB + 2200 }; }
+          if (!this.botAnnounced) { this.botAnnounced = true; this.onFeed(this.mode === 'coop' ? '🤝 تعاون! كل واحد بموجاته — صحابك معاك وماتضربوش بعض' : '🌊 انت لوحدك: وضع الموجات! اصمد قد ما تقدر'); this.waveBanner = { text: '🌊 الموجة ١', until: nowB + 2200 }; }
         } else if (humans > 0 && this.bots.length) {
           this.bots = []; this.upDone = false; this.pickWait = false; this.hideUpgrades();
           this.onFeed('👥 لاعب حقيقي دخل: البوتات خرجت');
@@ -1022,7 +1023,7 @@
           }
         }
         // إصابتي أنا (كل جهاز مسؤول عن لاعبه) — الدرع والحماية بيصدّوا
-        if (!dead && b.uid !== this.me.uid && this.myAlive && performance.now() > this.protectedUntil && !(this.mode === 'team' && this.teamOf(b.uid) >= 0 && this.teamOf(b.uid) === this.teamOf(this.me.uid))) {
+        if (!dead && b.uid !== this.me.uid && this.myAlive && performance.now() > this.protectedUntil && !((this.mode === 'team' || this.mode === 'coop') && this.teamOf(b.uid) >= 0 && this.teamOf(b.uid) === this.teamOf(this.me.uid))) {
           if (performance.now() < this.shieldUntil) {
             if (Math.hypot(b.x - this.myX, b.y - this.myY) < PLAYER_R + 4) {
               dead = true;
@@ -1389,7 +1390,7 @@
         const hp = isMe ? this.myHp : p.hp;
         const color = PALETTE[(p.color || 0) % PALETTE.length];
         ctx.globalAlpha = alive ? 1 : 0.3;
-        if (this.mode === 'team') { const tm = this.teamOf(uid); if (tm >= 0) { ctx.save(); ctx.strokeStyle = tm ? '#3b82f6' : '#ef4444'; ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 12; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(x, y, PLAYER_R + 6, 0, 6.283); ctx.stroke(); ctx.restore(); } }
+        if (this.mode === 'team' || this.mode === 'coop') { const tm = this.teamOf(uid); if (tm >= 0) { ctx.save(); ctx.strokeStyle = this.mode === 'coop' ? '#2ed573' : tm ? '#3b82f6' : '#ef4444'; ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 12; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(x, y, PLAYER_R + 6, 0, 6.283); ctx.stroke(); ctx.restore(); } }
         // خط التصويب لي أنا
         if (isMe && alive) {
           ctx.strokeStyle = 'rgba(255,255,255,0.25)';
