@@ -727,7 +727,7 @@
           this.lastPickupSpawn = nowS;
           const rnd = mulberry32(((nowS & 0x7fffffff) >>> 0) ^ this.seed);
           const p = this.freeSpot(rnd);
-          const types = ['hp', 'speed', 'shield', 'rapid', 'triple', 'shotgun', 'homing', 'flame'];
+          const types = ['hp', 'speed', 'shield', 'rapid', 'triple', 'shotgun', 'homing', 'flame', 'magnet'];
           const type = types[Math.floor(rnd() * types.length)];
           this.db.ref('rooms/' + this.roomCode + '/pickups').push({ x: Math.round(p.x), y: Math.round(p.y), t: type }).catch(() => {});
         }
@@ -1201,10 +1201,13 @@
 
       // التقاط القدرات
       if (this.myAlive) {
+        const mgOn = performance.now() < (this.magnetUntil || 0);
+        if (mgOn && performance.now() > (this._mgRing || 0)) { this._mgRing = performance.now() + 450; this.rings.push({ x: this.myX, y: this.myY, age: 0, life: 0.5, R: 280 }); }
+        const pRad = mgOn ? 280 : PLAYER_R + 16;
         for (const pid in this.pickups) {
           const pk = this.pickups[pid];
           const pdx = pk.x - this.myX, pdy = pk.y - this.myY;
-          if (pdx * pdx + pdy * pdy >= (PLAYER_R + 16) * (PLAYER_R + 16)) continue;
+          if (pdx * pdx + pdy * pdy >= pRad * pRad) continue;
           const type = pk.t || 'hp';
           if (type === 'hp') {
             if (this.myHp >= MAX_HP) continue; // بلاش نهدّر العلبة واحنا مليانين
@@ -1222,6 +1225,8 @@
           } else if (type === 'shotgun') {
             this.weapon = 'shotgun'; this.weaponUntil = performance.now() + 10000;
             this.onFeed('💥 شوتجن ١٠ ثواني! ٥ طلقات في الضربة');
+          } else if (type === 'magnet') {
+            this.magnetUntil = performance.now() + 10000; this.onFeed('🧲 مغناطيس ١٠ ثواني! بيجذب كل العلب في دايرة كبيرة');
           } else if (type === 'flame') {
             this.weapon = 'flame'; this.weaponUntil = performance.now() + 9000;
             this.onFeed('🔥 قاذف لهب ٩ ثواني! بيحرق البوتات القريبة (ضد البوتات بس)');
@@ -1394,7 +1399,7 @@
       for (const pid in this.pickups) {
         const pk = this.pickups[pid];
         const type = pk.t || 'hp';
-        const col = type === 'speed' ? '#ffa502' : type === 'shield' ? '#1e90ff' : type === 'rapid' ? '#a55eea' : type === 'triple' ? '#fd79a8' : type === 'shotgun' ? '#ff6348' : type === 'homing' ? '#ff9f43' : type === 'flame' ? '#ff4500' : '#2ed573';
+        const col = type === 'speed' ? '#ffa502' : type === 'shield' ? '#1e90ff' : type === 'rapid' ? '#a55eea' : type === 'triple' ? '#fd79a8' : type === 'shotgun' ? '#ff6348' : type === 'homing' ? '#ff9f43' : type === 'flame' ? '#ff4500' : type === 'magnet' ? '#e84393' : '#2ed573';
         ctx.fillStyle = col;
         ctx.shadowColor = col; ctx.shadowBlur = 12;
         roundRect(ctx, pk.x - 13, pk.y - 13, 26, 26, 7);
@@ -1407,7 +1412,7 @@
         } else {
           ctx.font = '16px serif';
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText(type === 'speed' ? '👟' : type === 'rapid' ? '🔫' : type === 'triple' ? '🔱' : type === 'shotgun' ? '💥' : type === 'homing' ? '🚀' : type === 'flame' ? '🔥' : '🛡️', pk.x, pk.y + 1);
+          ctx.fillText(type === 'speed' ? '👟' : type === 'rapid' ? '🔫' : type === 'triple' ? '🔱' : type === 'shotgun' ? '💥' : type === 'homing' ? '🚀' : type === 'flame' ? '🔥' : type === 'magnet' ? '🧲' : '🛡️', pk.x, pk.y + 1);
         }
       }
 
