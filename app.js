@@ -190,6 +190,7 @@
     $('btn-shop').onclick = () => { renderShop(); show('shop'); };
     $('btn-back-from-shop').onclick = () => { updShopBtn(); show('home'); };
     updShopBtn(); setInterval(updShopBtn, 4000);
+    $('btn-skill').onclick = () => { if (window.ArenaGame && ArenaGame.running) ArenaGame.useSkill(); };
     $('btn-gren').onclick = () => { if (window.ArenaGame && ArenaGame.running) ArenaGame.throwGrenade(); };
     $('btn-ult').onclick = () => { if (window.ArenaGame && ArenaGame.running) ArenaGame.ultimate(); };
     $('btn-dash').onclick = () => { if (window.ArenaGame && ArenaGame.running) ArenaGame.dash(); };
@@ -976,10 +977,10 @@
   // نافذة "الجديد" مرة واحدة بعد التحديث
   setTimeout(() => {
     try {
-      if (localStorage.getItem('arena_wn') === 'r74') return;
+      if (localStorage.getItem('arena_wn') === 'r75') return;
       const w = $('whatsnew'); if (!w || !$('screen-home').classList.contains('active')) return;
       w.classList.remove('hidden');
-      $('btn-wn-ok').onclick = () => { w.classList.add('hidden'); localStorage.setItem('arena_wn', 'r74'); };
+      $('btn-wn-ok').onclick = () => { w.classList.add('hidden'); localStorage.setItem('arena_wn', 'r75'); };
     } catch (e) { /* ignore */ }
   }, 3500);
 })();
