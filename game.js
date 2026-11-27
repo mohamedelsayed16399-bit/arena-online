@@ -88,7 +88,7 @@
       this.myX = p.x; this.myY = p.y; this.myAngle = 0;
       this.myHp = MAX_HP; this.myAlive = true;
       this.lastHpShown = MAX_HP; this.muzzleUntil = 0; this.hitFlashUntil = 0;
-      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.rs = { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }; this.barrels = []; this.wave = 1; this.waveAt = 0; this.waveBanner = null; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.wasHole = false; this.specIdx = 0; this.mod = ''; this.ult = 0; this.meteors = []; this.icePools = []; this.up = { dmg: 0, spd: 0, rate: 0, steal: 0, arm: 0, drone: 0 }; this.upDone = false; this.pickWait = false; this.hideUpgrades();
+      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.rs = { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }; this.barrels = []; this.wave = 1; this.waveAt = 0; this.waveBanner = null; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.wasHole = false; this.specIdx = 0; this.mod = ''; this.ult = 0; this.meteors = []; this.icePools = []; this.up = { dmg: 0, spd: 0, rate: 0, steal: 0, arm: 0, drone: 0, boom: 0, chain: 0, life: 0 }; this._lifeUsed = 0; this.upDone = false; this.pickWait = false; this.hideUpgrades();
       this.protectedUntil = performance.now() + 2000; // حماية بداية الجولة
       this.writeSelf(true);
       this.onFeed('🗺️ ساحة ' + this.theme.name);
@@ -475,8 +475,11 @@
         { k: 'rate', i: '⚡', t: 'تصويب أسرع', d: '-١٥٪ وقت بين الطلقات' },
         { k: 'steal', i: '🩸', t: 'سرقة صحة', d: 'كل إصابة بتشفيك' },
         { k: 'drone', i: '🚁', t: 'درون مساعد', d: 'درون بيضرب أقرب بوت' },
-        { k: 'arm', i: '🛡️', t: 'دروع', d: '-١٨٪ ضرر من البوتات' }
-      ];
+        { k: 'arm', i: '🛡️', t: 'دروع', d: '-١٨٪ ضرر من البوتات' },
+        { k: 'boom', i: '💥', t: 'انفجار القتلى', d: 'كل بوت بيموت بينفجر ويضرب اللي حواليه' },
+        { k: 'chain', i: '⛓️', t: 'صاعقة متسلسلة', d: 'كل إصابة بتقفز لأقرب بوت' },
+        { k: 'life', i: '❤️‍🔥', t: 'حياة تانية', d: 'لو موت، بترجع بنص الصحة (مرة)' }
+      ].filter((u) => !(u.k === 'life' && (this.up.life || 0) >= 1) && !((u.k === 'boom' || u.k === 'chain') && (this.up[u.k] || 0) >= 4));
       const pick = ALL.slice().sort(() => Math.random() - 0.5).slice(0, 3);
       let el = document.getElementById('upgrade-picker');
       if (!el) { el = document.createElement('div'); el.id = 'upgrade-picker'; document.body.appendChild(el); }
@@ -643,6 +646,7 @@
 
     die(killerUid) {
       if (!this.myAlive) return;
+      if ((this.up.life || 0) > (this._lifeUsed || 0)) { this._lifeUsed = (this._lifeUsed || 0) + 1; this.myHp = MAX_HP * 0.5; this.protectedUntil = performance.now() + 2500; this.onHud(this.myHp); this.onFeed('❤️‍🔥 حياة تانية! رجعت بنص الصحة'); this.burst(this.myX, this.myY, '#ff6b81', 40, 420); this.rings.push({ x: this.myX, y: this.myY, age: 0, life: 0.7, R: 200 }); return; }
       this.myAlive = false;
       this.myHp = 0;
       this.deaths = (this.deaths || 0) + 1;
@@ -1264,11 +1268,13 @@
               let dmgN = BULLET_DMG * (b.h ? 2 : 1) * (b.dm || (b.pierce ? 1.6 : 1)) * (1 + 0.25 * this.up.dmg);
               const crit = Math.random() < (b.flame ? 0.04 : 0.12); if (crit) { dmgN *= 2.2; this.shakeUntil = Math.max(this.shakeUntil, performance.now() + 90); this.burst(bt.x, bt.y, '#ffd32a', 14, 300); Sfx.hit && Sfx.hit(); this.critCount = (this.critCount || 0) + 1; }
               bt.hp -= dmgN;
+              if (this.up.chain) { let nb = null, nd = 260; for (const q of this.bots) { if (q !== bt && q.alive && q.hp > 1) { const dd = Math.hypot(q.x - bt.x, q.y - bt.y); if (dd < nd) { nd = dd; nb = q; } } } if (nb) { nb.hp = Math.max(1, nb.hp - dmgN * 0.35 * this.up.chain); this.burst(nb.x, nb.y, '#74b9ff', 8, 200); this.rings.push({ x: nb.x, y: nb.y, age: 0, life: 0.25, R: 30 }); } }
               this.dmgNums = this.dmgNums || []; this.dmgNums.push({ x: bt.x + (Math.random() - 0.5) * 24, y: bt.y - 30, t: crit ? '💥 ' + Math.round(dmgN) + '!' : Math.round(dmgN), crit, at: performance.now(), big: crit || !!b.h || dmgN >= 40 }); if (this.dmgNums.length > 40) this.dmgNums.shift();
               if (this.up.steal && this.myAlive) { this.myHp = Math.min(MAX_HP, this.myHp + 2 * this.up.steal); this.onHud(this.myHp); }
               this.burst(bt.x, bt.y, '#ff6b81', 8, 180);
               if (bt.hp <= 0) {
                 bt.alive = false; bt.respawnAt = performance.now() + 3000;
+                if (this.up.boom) { for (const q of this.bots) { if (q !== bt && q.alive && Math.hypot(q.x - bt.x, q.y - bt.y) < 150) q.hp = Math.max(1, q.hp - 28 * this.up.boom); } this.rings.push({ x: bt.x, y: bt.y, age: 0, life: 0.5, R: 150 }); this.burst(bt.x, bt.y, '#ff9f43', 26, 380); }
                 this.burst(bt.x, bt.y, '#ffd32a', 28, 300);
                 this.onFeed('🤖 قضيت على ' + bt.name);
                 if (bt.boss && this.myAlive) {
