@@ -10,6 +10,8 @@
   const BULLET_DMG = 25;
   const FIRE_COOLDOWN = 330;      // مللي ثانية
   const MAX_HP = 100;
+  const CLASSES = { fighter: { n: 'مقاتل', fr: 0.88, spd: 1, dmg: 1, dash: 1, gren: 1 }, tank: { n: 'حارس', fr: 1, spd: 0.93, dmg: 0.7, dash: 1.2, gren: 1 }, ghost: { n: 'شبح', fr: 1, spd: 1.12, dmg: 1.1, dash: 0.55, gren: 1.2 }, bomber: { n: 'مفجّر', fr: 1.05, spd: 1, dmg: 1, dash: 1, gren: 0.5 } };
+  const CL = () => CLASSES[localStorage.getItem('arena_class')] || CLASSES.fighter;
   const RESPAWN_SEC = 3;
   const NET_HZ = 90;              // كل كام مللي ثانية نبعت الموقع
 
@@ -391,7 +393,7 @@
       let l = Math.hypot(mx, my);
       if (l < 0.1) { mx = Math.cos(this.myAngle); my = Math.sin(this.myAngle); l = 1; }
       this.dashX = mx / l; this.dashY = my / l;
-      this.dashUntil = now + 170; this.dashCd = now + 2500;
+      this.dashUntil = now + 170; this.dashCd = now + 2500 * CL().dash;
       this.burst(this.myX, this.myY, '#7bdff2', 16, 220);
       this.ach('dash'); this.rs.dash++;
     },
@@ -399,7 +401,7 @@
     throwGrenade() {
       const now = performance.now();
       if (!this.myAlive || !this.running || now < this.grenCd) return;
-      this.grenCd = now + 8000;
+      this.grenCd = now + 8000 * CL().gren;
       const d = 260, tx = clamp(this.myX + Math.cos(this.myAngle) * d, 20, WORLD - 20), ty = clamp(this.myY + Math.sin(this.myAngle) * d, 20, WORLD - 20);
       const id = this.me.uid.slice(0, 4) + '_g' + Math.floor(now);
       this.addGrenade({ id, uid: this.me.uid, x: this.myX, y: this.myY, tx, ty });
@@ -596,7 +598,7 @@
       const flame = this.weapon === 'flame' && now < this.weaponUntil;
       const rail = this.weapon === 'rail' && now < this.weaponUntil;
       const boom = this.weapon === 'boom' && now < this.weaponUntil;
-      if (now - this.lastFire < (boom ? 700 : rail ? 850 : flame ? 75 : laser ? 200 : rapid ? 130 : shotgun ? 520 : homing ? 600 : FIRE_COOLDOWN) * Math.pow(0.85, this.up.rate) || !this.myAlive) return;
+      if (now - this.lastFire < (boom ? 700 : rail ? 850 : flame ? 75 : laser ? 200 : rapid ? 130 : shotgun ? 520 : homing ? 600 : FIRE_COOLDOWN) * Math.pow(0.85, this.up.rate) * CL().fr || !this.myAlive) return;
       this.lastFire = now; this.rs.shots++;
       const angs = shotgun ? [-0.4, -0.2, 0, 0.2, 0.4] : triple ? [-0.22, 0, 0.22] : [0];
       if (shotgun) { this.shakeUntil = Math.max(this.shakeUntil, now + 120); this.burst(this.myX + Math.cos(this.myAngle) * 30, this.myY + Math.sin(this.myAngle) * 30, '#ffa502', 10, 260); }
@@ -812,7 +814,7 @@
         if (len > 0.01) {
           if (len > 1) { mx /= len; my /= len; }
           const inIce = (this.icePools || []).some((ip) => performance.now() < ip.until && Math.hypot(this.myX - ip.x, this.myY - ip.y) < ip.r);
-          const spd0 = dashing ? SPEED * 4.2 : performance.now() < this.speedUntil ? SPEED * 1.4 * (1 + 0.1 * this.up.spd) : SPEED * (1 + 0.1 * this.up.spd);
+          const spd0 = CL().spd * (dashing ? SPEED * 4.2 : performance.now() < this.speedUntil ? SPEED * 1.4 * (1 + 0.1 * this.up.spd) : SPEED * (1 + 0.1 * this.up.spd));
           const spd = (inIce && !dashing ? spd0 * 0.45 : spd0) * (this.mode === 'flag' && this.flag && this.flag.holder === this.me.uid ? 0.88 : 1) * (this.mode === 'bomb' && this.bomb && this.bomb.holder === this.me.uid ? 1.12 : 1) * (this.mode === 'infect' && this.inf ? 1.18 : 1);
           let nx = this.myX + mx * spd * dt;
           let ny = this.myY + my * spd * dt;
@@ -1272,7 +1274,7 @@
             }
           } else if (Math.hypot(b.x - this.myX, b.y - this.myY) < PLAYER_R + 4) {
             dead = true;
-            this.myHp -= BULLET_DMG * (b.rail ? 3 : 1) * (this.mode === 'oneshot' && String(b.uid).indexOf('bot') !== 0 ? 4 : 1) * (String(b.uid).indexOf('bot') === 0 ? Math.pow(0.82, this.up.arm) * (this.mod === 'rage' ? 1.5 : 1) : 1);
+            this.myHp -= CL().dmg * BULLET_DMG * (b.rail ? 3 : 1) * (this.mode === 'oneshot' && String(b.uid).indexOf('bot') !== 0 ? 4 : 1) * (String(b.uid).indexOf('bot') === 0 ? Math.pow(0.82, this.up.arm) * (this.mod === 'rage' ? 1.5 : 1) : 1);
             this.onHud(this.myHp);
             this.writeSelf(true);
             this.db.ref('rooms/' + this.roomCode + '/events').push({
