@@ -398,6 +398,26 @@
       this.ach('dash'); this.rs.dash++;
     },
 
+    useSkill() {
+      const now = performance.now();
+      if (!this.myAlive || !this.running || now < (this.skillCd || 0)) return;
+      const k = localStorage.getItem('arena_class') || 'fighter';
+      this.skillCd = now + 20000;
+      if (k === 'tank') { this.shieldUntil = now + 4000; this.onFeed('🛡️ جدار الحارس: درع 4 ثواني'); this.burst(this.myX, this.myY, '#4dabf7', 24, 240); }
+      else if (k === 'ghost') { this.protectedUntil = now + 3000; this.onFeed('👻 تخفّي: مفيش ضرر 3 ثواني'); this.burst(this.myX, this.myY, '#b197fc', 24, 240); }
+      else if (k === 'bomber') {
+        this.onFeed('💥 ثلاث قنابل!');
+        for (let i = -1; i <= 1; i++) {
+          const ang = this.myAngle + i * 0.45, d = 240;
+          const tx = clamp(this.myX + Math.cos(ang) * d, 20, WORLD - 20), ty = clamp(this.myY + Math.sin(ang) * d, 20, WORLD - 20);
+          const id = this.me.uid.slice(0, 4) + '_s' + Math.floor(now) + i;
+          this.addGrenade({ id, uid: this.me.uid, x: this.myX, y: this.myY, tx, ty });
+          this.db.ref('rooms/' + this.roomCode + '/events').push({ t: 'gren', id, uid: this.me.uid, x: Math.round(this.myX), y: Math.round(this.myY), tx: Math.round(tx), ty: Math.round(ty), ts: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
+        }
+      } else { this.speedUntil = now + 5000; this.onFeed('⚡ اندفاع المقاتل: سرعة 5 ثواني'); this.burst(this.myX, this.myY, '#ffd43b', 24, 240); }
+      this.ach('skill'); 
+    },
+
     throwGrenade() {
       const now = performance.now();
       if (!this.myAlive || !this.running || now < this.grenCd) return;
@@ -1337,6 +1357,8 @@
       for (let i = this.rings.length - 1; i >= 0; i--) { this.rings[i].age += dt; if (this.rings[i].age >= this.rings[i].life) this.rings.splice(i, 1); }
       const ub = document.getElementById('btn-ult');
       if (ub) { const u = Math.floor(this.ult || 0); ub.textContent = u >= 100 ? '⚡ جاهز!' : '⚡ ' + u + '٪'; ub.style.opacity = u >= 100 ? '1' : '0.5'; ub.classList.toggle('ult-ready', u >= 100); }
+      const sb = document.getElementById('btn-skill');
+      if (sb) { const sc = Math.ceil(((this.skillCd || 0) - performance.now()) / 1000); const ic = { tank: '🛡️', ghost: '👻', bomber: '💥' }[localStorage.getItem('arena_class')] || '⚡'; sb.textContent = sc > 0 ? ic + ' ' + sc : ic; sb.style.opacity = sc > 0 ? '0.45' : '1'; }
       const gb = document.getElementById('btn-gren');
       if (gb) { const gc = Math.ceil((this.grenCd - performance.now()) / 1000); gb.textContent = gc > 0 ? '💣 ' + gc : '💣'; gb.style.opacity = gc > 0 ? '0.45' : '1'; }
       for (let i = this.fx.length - 1; i >= 0; i--) {
