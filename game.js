@@ -21,6 +21,7 @@
     { name: 'فضاء', bg0: '#160b2e', bg1: '#070312', ob: '#3b2a73', obs: 'rgba(190,150,255,0.28)' },
     { name: 'غابة', bg0: '#0f2a16', bg1: '#07160b', ob: '#2f5a2a', obs: 'rgba(160,255,140,0.22)' },
     { name: 'نيون', bg0: '#1a0630', bg1: '#06010f', ob: '#0e3b5a', obs: 'rgba(0,245,255,0.45)' },
+    { name: 'مصنع', bg0: '#231c10', bg1: '#0f0c06', ob: '#6b5426', obs: 'rgba(255,200,80,0.35)' },
     { name: 'عميق', bg0: '#06263a', bg1: '#021018', ob: '#1b6b7a', obs: 'rgba(120,255,230,0.25)' },
   ];
   const BOT_LEVELS = { easy: { fire: 1600, err: 0.9, spd: 110 }, normal: { fire: 950, err: 0.45, spd: 150 }, hard: { fire: 600, err: 0.18, spd: 190 } };
@@ -179,6 +180,11 @@
       if (nm === 'فضاء') {
         const rs = mulberry32(((this.seed * 31 + 777) >>> 0));
         for (let k = 0; k < 4; k++) { const p = this.freeSpot(rs); this.hazards.push({ x: p.x, y: p.y, r: 190, type: 'hole' }); }
+        return;
+      }
+      if (nm === 'مصنع') {
+        const rf = mulberry32(((this.seed * 31 + 321) >>> 0));
+        for (let k = 0; k < 7; k++) { const p = this.freeSpot(rf); this.hazards.push({ x: p.x, y: p.y, r: 140, type: 'belt', a: Math.floor(rf() * 4) * Math.PI / 2 }); }
         return;
       }
       if (nm !== 'حمم' && nm !== 'تلج') return;
@@ -845,6 +851,17 @@
         db2.style.opacity = cdl > 0 ? '0.45' : '1';
       }
 
+      if (this.theme && this.theme.name === 'مصنع') {
+        for (const h of (this.hazards || [])) {
+          if (h.type !== 'belt') continue;
+          const bx = Math.cos(h.a) * 140 * dt, by = Math.sin(h.a) * 140 * dt;
+          if (this.myAlive && Math.hypot(this.myX - h.x, this.myY - h.y) < h.r) {
+            const nx3 = clamp(this.myX + bx, PLAYER_R, WORLD - PLAYER_R), ny3 = clamp(this.myY + by, PLAYER_R, WORLD - PLAYER_R);
+            if (!this.obstacles.some((o) => circleRect(nx3, ny3, PLAYER_R, o))) { this.myX = nx3; this.myY = ny3; }
+          }
+          for (const bt of this.bots) if (bt.alive && Math.hypot(bt.x - h.x, bt.y - h.y) < h.r) { bt.x = clamp(bt.x + bx, 30, WORLD - 30); bt.y = clamp(bt.y + by, 30, WORLD - 30); }
+        }
+      }
       if (this.myAlive && this.portals && this.portals.length && performance.now() > (this.portalCd || 0)) {
         for (const po of this.portals) {
           if (Math.hypot(this.myX - po.x, this.myY - po.y) < 44) {
@@ -1478,6 +1495,12 @@
       }
       for (const h of (this.hazards || [])) {
         const tt = performance.now() / 1000;
+        if (h.type === 'belt') {
+          ctx.save(); ctx.translate(h.x, h.y); ctx.beginPath(); ctx.arc(0, 0, h.r, 0, 6.283); ctx.fillStyle = 'rgba(40,34,20,0.85)'; ctx.fill(); ctx.strokeStyle = '#ffc048'; ctx.lineWidth = 4; ctx.stroke(); ctx.clip();
+          ctx.rotate(h.a); const off = (tt * 90) % 50; ctx.strokeStyle = 'rgba(255,192,72,0.8)'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+          for (let cx2 = -h.r - 50; cx2 < h.r + 50; cx2 += 50) { const xx = cx2 + off; ctx.beginPath(); ctx.moveTo(xx - 10, -26); ctx.lineTo(xx + 10, 0); ctx.lineTo(xx - 10, 26); ctx.stroke(); }
+          ctx.restore(); continue;
+        }
         if (h.type === 'hole') {
           const sp = tt * 1.6;
           ctx.save(); ctx.translate(h.x, h.y);
@@ -1852,7 +1875,7 @@
       c.fillStyle = 'rgba(255,255,255,0.18)';
       for (const o of this.obstacles) c.fillRect(o.x * sc, o.y * sc, Math.max(2, o.w * sc), Math.max(2, o.h * sc));
       for (const po of (this.portals || [])) { c.fillStyle = po.c; c.beginPath(); c.arc(po.x * sc, po.y * sc, 2.5, 0, 6.283); c.fill(); }
-      for (const h of (this.hazards || [])) { c.fillStyle = h.type === 'hole' ? 'rgba(160,90,255,0.7)' : h.type === 'lava' ? 'rgba(255,90,30,0.65)' : 'rgba(160,225,255,0.4)'; c.beginPath(); c.arc(h.x * sc, h.y * sc, h.r * sc, 0, Math.PI * 2); c.fill(); }
+      for (const h of (this.hazards || [])) { c.fillStyle = h.type === 'hole' ? 'rgba(160,90,255,0.7)' : h.type === 'lava' ? 'rgba(255,90,30,0.65)' : h.type === 'belt' ? 'rgba(255,192,72,0.6)' : 'rgba(160,225,255,0.4)'; c.beginPath(); c.arc(h.x * sc, h.y * sc, h.r * sc, 0, Math.PI * 2); c.fill(); }
       const sm = this.stormInfo();
       if (sm) { c.strokeStyle = '#ff4757'; c.lineWidth = 2; c.beginPath(); c.arc(sm.x * sc, sm.y * sc, sm.r * sc, 0, Math.PI * 2); c.stroke(); }
       if (this.mode === 'flag' && this.flag) { const f = this.flag, hq = f.holder === this.me.uid ? { x: this.myX, y: this.myY } : (f.holder && this.players[f.holder] && typeof this.players[f.holder].x === 'number' ? this.players[f.holder] : f); c.fillStyle = '#ff4757'; c.fillRect(hq.x * sc - 4, hq.y * sc - 4, 8, 8); }
