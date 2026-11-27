@@ -1207,10 +1207,11 @@
         }
         if (b.boom && b.uid === this.me.uid) {
           if (b.age > 0.8) {
-            const ta = Math.atan2(this.myY - b.y, this.myX - b.x), cd = Math.cos(ta), sd = Math.sin(ta);
-            b.dx += (cd - b.dx) * Math.min(1, 6 * dt); b.dy += (sd - b.dy) * Math.min(1, 6 * dt);
-            const ln = Math.hypot(b.dx, b.dy) || 1; b.dx /= ln; b.dy /= ln;
-            if (Math.hypot(this.myX - b.x, this.myY - b.y) < PLAYER_R + 10) { this.bullets.splice(i, 1); this.burst(b.x, b.y, '#2ed573', 6, 120); continue; }
+            const ta = Math.atan2(this.myY - b.y, this.myX - b.x);
+            const cur = Math.atan2(b.dy, b.dx); let df = ta - cur; while (df > Math.PI) df -= 6.283185; while (df < -Math.PI) df += 6.283185;
+            if (Math.abs(df) > 3.0) df = 3.0;
+            const na = cur + Math.max(-8 * dt, Math.min(8 * dt, df)); b.dx = Math.cos(na); b.dy = Math.sin(na);
+            if (Math.hypot(this.myX - b.x, this.myY - b.y) < PLAYER_R + 40) { this.bullets.splice(i, 1); this.burst(b.x, b.y, '#2ed573', 6, 120); continue; }
           }
           if (Math.random() < 0.5) this.burst(b.x, b.y, '#2ed573', 1, 50);
           b.ang = (b.ang || 0) + 18 * dt;
