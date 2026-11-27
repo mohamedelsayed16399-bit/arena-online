@@ -606,6 +606,7 @@
       this.myHp = 0;
       this.deaths = (this.deaths || 0) + 1;
       this.respawnAt = performance.now() + RESPAWN_SEC * 1000;
+      this.killCam = (killerUid && killerUid !== this.me.uid) ? { uid: killerUid, until: performance.now() + 2800, t0: performance.now() } : null;
       if (this.mode === 'flag' && this.flag && this.flag.holder === this.me.uid) {
         const dr = { holder: '', x: Math.round(this.myX), y: Math.round(this.myY) }; this.flag = dr; this.flagBlock = performance.now() + 2500;
         this.db.ref('rooms/' + this.roomCode + '/flag').set(dr).catch(() => {}); this.onFeed('🚩 وقع منك العلم!');
@@ -1230,6 +1231,15 @@
       let camX = this.myX, camY = this.myY;
       this.specName = '';
       if (!this.myAlive) {
+        const kcm = this.killCam; let kcDone = false;
+        if (kcm && performance.now() < kcm.until) {
+          let kt = null, kn2 = '';
+          if (this.players[kcm.uid] && this.players[kcm.uid].x !== undefined) { kt = this.players[kcm.uid]; kn2 = kt.name || 'لاعب'; }
+          else { const kb2 = this.bots.find((q) => q.id === kcm.uid); if (kb2) { kt = kb2; kn2 = kb2.name; } }
+          if (kt) { camX = kt.x; camY = kt.y; this.specName = ''; this.killCamName = kn2; kcDone = true; }
+        }
+        if (!kcDone) this.killCamName = '';
+        if (!kcDone) {
         const alive = Object.keys(this.players).filter((u) => this.players[u].alive && this.players[u].x !== undefined);
         const liveBots = this.bots.filter((x) => x.alive);
         if (!alive.length && liveBots.length) {
@@ -1238,6 +1248,7 @@
         } else if (alive.length) {
           const u = alive[this.specIdx % alive.length];
           camX = this.players[u].x; camY = this.players[u].y; this.specName = this.players[u].name || 'لاعب';
+        }
         }
       }
       this.cam.x = clamp(camX - innerWidth / 2, 0, WORLD - innerWidth);
@@ -1715,6 +1726,13 @@
       if (this.myAlive && wl > 0) {
         ctx.font = 'bold 14px Cairo, sans-serif'; ctx.fillStyle = this.weapon === 'flame' ? '#ff4500' : this.weapon === 'laser' ? '#00f5ff' : this.weapon === 'rapid' ? '#a55eea' : this.weapon === 'shotgun' ? '#ff6348' : this.weapon === 'homing' ? '#ff9f43' : '#fd79a8';
         ctx.fillText((this.weapon === 'flame' ? '🔥 لهب ' : this.weapon === 'laser' ? '⚡ ليزر ' : this.weapon === 'rapid' ? '🔫 رشاش ' : this.weapon === 'shotgun' ? '💥 شوتجن ' : this.weapon === 'homing' ? '🚀 موجّه ' : '🔱 ثلاثي ') + Math.ceil(wl / 1000) + 'ث', innerWidth / 2, innerHeight - 170);
+      }
+      if (!this.myAlive && this.killCamName) {
+        const kk = this.killCam ? Math.min(1, (performance.now() - this.killCam.t0) / 300) : 1, bh = 46 * kk;
+        ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, innerWidth, bh); ctx.fillRect(0, innerHeight - bh, innerWidth, bh);
+        const vg = ctx.createRadialGradient(innerWidth / 2, innerHeight / 2, Math.min(innerWidth, innerHeight) * 0.3, innerWidth / 2, innerHeight / 2, Math.max(innerWidth, innerHeight) * 0.75); vg.addColorStop(0, 'rgba(255,0,0,0)'); vg.addColorStop(1, 'rgba(160,0,20,0.55)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, innerWidth, innerHeight);
+        ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.font = 'bold 18px Cairo, sans-serif'; ctx.fillText('🎥 كاميرا القتل: ' + this.killCamName + ' هو اللي قتلك', innerWidth / 2, 30);
+        ctx.fillStyle = '#ff4757'; ctx.font = 'bold 14px Cairo, sans-serif'; ctx.fillText('● REC', 40, innerHeight - 16); ctx.restore();
       }
       if (!this.myAlive && this.specName) {
         ctx.font = 'bold 16px Cairo, sans-serif'; ctx.fillStyle = '#fff';
