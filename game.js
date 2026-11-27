@@ -483,7 +483,7 @@
     hideUpgrades() { const el = document.getElementById('upgrade-picker'); if (el) el.style.display = 'none'; },
 
     spawnWave(nowB) {
-      const wv = this.bossRush ? [1, 10, 15, 20, 25, 30, 35, 40, 45][(this.wave - 1) % 9] : this.wave, sc = this.bossRush ? 1 + 0.3 * Math.floor((this.wave - 1) / 9) : 1;
+      const wv = this.bossRush ? [1, 10, 15, 20, 25, 30, 35, 40, 45, 50][(this.wave - 1) % 10] : this.wave, sc = this.bossRush ? 1 + 0.3 * Math.floor((this.wave - 1) / 10) : 1;
       const MK = Object.keys(MODS);
       this.mod = this.wave >= 2 && !this.bossRush && this.wave % 5 !== 0 && Math.random() < 0.65 ? MK[Math.floor(Math.random() * MK.length)] : '';
       if (this.mod) { this.onFeed('🎲 تعديل الموجة: ' + MODS[this.mod].t); this.modBanner = { text: MODS[this.mod].t, until: performance.now() + 2600 }; }
