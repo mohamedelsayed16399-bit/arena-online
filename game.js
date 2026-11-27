@@ -166,6 +166,15 @@
 
     buildHazards() {
       this.hazards = [];
+      this.portals = [];
+      try {
+        const rp = mulberry32(((this.seed * 31 + 999) >>> 0));
+        for (let pr = 0; pr < 2; pr++) {
+          const p1 = this.freeSpot(rp); let p2 = this.freeSpot(rp);
+          for (let q = 0; q < 12 && Math.hypot(p1.x - p2.x, p1.y - p2.y) < 700; q++) p2 = this.freeSpot(rp);
+          this.portals.push({ x: p1.x, y: p1.y, to: pr * 2 + 1, c: pr ? '#ff5ce1' : '#00f5ff' }, { x: p2.x, y: p2.y, to: pr * 2, c: pr ? '#ff5ce1' : '#00f5ff' });
+        }
+      } catch (e) { this.portals = []; }
       const nm = this.theme && this.theme.name;
       if (nm === 'فضاء') {
         const rs = mulberry32(((this.seed * 31 + 777) >>> 0));
@@ -835,6 +844,20 @@
         db2.style.opacity = cdl > 0 ? '0.45' : '1';
       }
 
+      if (this.myAlive && this.portals && this.portals.length && performance.now() > (this.portalCd || 0)) {
+        for (const po of this.portals) {
+          if (Math.hypot(this.myX - po.x, this.myY - po.y) < 44) {
+            const dst = this.portals[po.to];
+            this.burst(this.myX, this.myY, po.c, 20, 260);
+            this.myX = dst.x + 60; this.myY = dst.y; this.portalCd = performance.now() + 1500;
+            this.burst(this.myX, this.myY, po.c, 20, 260); this.writeSelf(true);
+            this.shakeUntil = Math.max(this.shakeUntil || 0, performance.now() + 120);
+            try { Sfx.dash && Sfx.dash(); } catch (e) {}
+            this.onFeed('🌀 بوابة! اتنقلت');
+            break;
+          }
+        }
+      }
       if (this.myAlive) {
         const inLava = (this.hazards || []).some((h) => h.type === 'lava' && Math.hypot(this.myX - h.x, this.myY - h.y) < h.r);
         if (inLava && performance.now() > this.protectedUntil) {
@@ -1390,6 +1413,14 @@
         ctx.beginPath(); ctx.arc(stm.x, stm.y, stm.r, 0, Math.PI * 2); ctx.stroke();
       }
 
+      for (const po of (this.portals || [])) {
+        const pt = performance.now() / 1000, dst = this.portals[po.to];
+        ctx.save(); ctx.translate(po.x, po.y);
+        const pg = ctx.createRadialGradient(0, 0, 4, 0, 0, 48); pg.addColorStop(0, '#000'); pg.addColorStop(0.6, po.c + '88'); pg.addColorStop(1, po.c + '00');
+        ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(0, 0, 48, 0, 6.283); ctx.fill();
+        for (let q = 0; q < 3; q++) { ctx.save(); ctx.rotate(pt * (2 + q) * (q % 2 ? -1 : 1)); ctx.strokeStyle = po.c; ctx.globalAlpha = 0.9 - q * 0.2; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(0, 0, 40 - q * 9, 18 - q * 3, q, 0, 5); ctx.stroke(); ctx.restore(); }
+        ctx.restore();
+      }
       for (const h of (this.hazards || [])) {
         const tt = performance.now() / 1000;
         if (h.type === 'hole') {
@@ -1751,6 +1782,7 @@
       c.clearRect(0, 0, S, S);
       c.fillStyle = 'rgba(255,255,255,0.18)';
       for (const o of this.obstacles) c.fillRect(o.x * sc, o.y * sc, Math.max(2, o.w * sc), Math.max(2, o.h * sc));
+      for (const po of (this.portals || [])) { c.fillStyle = po.c; c.beginPath(); c.arc(po.x * sc, po.y * sc, 2.5, 0, 6.283); c.fill(); }
       for (const h of (this.hazards || [])) { c.fillStyle = h.type === 'hole' ? 'rgba(160,90,255,0.7)' : h.type === 'lava' ? 'rgba(255,90,30,0.65)' : 'rgba(160,225,255,0.4)'; c.beginPath(); c.arc(h.x * sc, h.y * sc, h.r * sc, 0, Math.PI * 2); c.fill(); }
       const sm = this.stormInfo();
       if (sm) { c.strokeStyle = '#ff4757'; c.lineWidth = 2; c.beginPath(); c.arc(sm.x * sc, sm.y * sc, sm.r * sc, 0, Math.PI * 2); c.stroke(); }
