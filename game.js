@@ -231,7 +231,7 @@
 
       // العلم (وضع الاستحواذ على العلم)
       this.flag = null; this.flagBlock = 0; this.flagAcc = 0; this.flagTry = false;
-      this.bomb = null; this.bombBlock = 0; this.bombTry = false; this.bombAcc = 0; this._lastBombHolder = '';
+      this.inf = false; this.infAcc = 0; this.infBlock = 0; this.infT0 = 0; this.infChosen = false; this.infPrev = {}; this.bomb = null; this.bombBlock = 0; this.bombTry = false; this.bombAcc = 0; this._lastBombHolder = '';
       if (this.mode === 'flag') {
         const flagRef = roomRef.child('flag');
         const onFlag = flagRef.on('value', (s) => { this.flag = s.val(); });
@@ -330,7 +330,7 @@
         angle: Math.round(this.myAngle * 100) / 100,
         hp: this.myHp, alive: this.myAlive,
         sh: performance.now() < this.shieldUntil ? 1 : 0,
-        zpts: this.zpts || 0, hb: firebase.database.ServerValue.TIMESTAMP,
+        zpts: this.zpts || 0, inf: this.inf ? 1 : 0, hb: firebase.database.ServerValue.TIMESTAMP,
         name: this.me.name, avatar: this.me.avatar, color: this.me.color,
       }).catch(() => {});
     },
@@ -580,6 +580,7 @@
     },
 
     shoot() {
+      if (this.mode === 'infect' && this.inf) return;
       const now = performance.now();
       const rapid = this.weapon === 'rapid' && now < this.weaponUntil;
       const triple = this.weapon === 'triple' && now < this.weaponUntil;
@@ -803,7 +804,7 @@
           if (len > 1) { mx /= len; my /= len; }
           const inIce = (this.icePools || []).some((ip) => performance.now() < ip.until && Math.hypot(this.myX - ip.x, this.myY - ip.y) < ip.r);
           const spd0 = dashing ? SPEED * 4.2 : performance.now() < this.speedUntil ? SPEED * 1.4 * (1 + 0.1 * this.up.spd) : SPEED * (1 + 0.1 * this.up.spd);
-          const spd = (inIce && !dashing ? spd0 * 0.45 : spd0) * (this.mode === 'flag' && this.flag && this.flag.holder === this.me.uid ? 0.88 : 1) * (this.mode === 'bomb' && this.bomb && this.bomb.holder === this.me.uid ? 1.12 : 1);
+          const spd = (inIce && !dashing ? spd0 * 0.45 : spd0) * (this.mode === 'flag' && this.flag && this.flag.holder === this.me.uid ? 0.88 : 1) * (this.mode === 'bomb' && this.bomb && this.bomb.holder === this.me.uid ? 1.12 : 1) * (this.mode === 'infect' && this.inf ? 1.18 : 1);
           let nx = this.myX + mx * spd * dt;
           let ny = this.myY + my * spd * dt;
           if (dashing && Math.random() < 0.7) this.burst(this.myX, this.myY, '#7bdff2', 2, 60);
@@ -929,6 +930,32 @@
             const nh = others.length ? others[Math.floor(Math.random() * others.length)] : this.me.uid;
             this.db.ref('rooms/' + this.roomCode + '/bomb').transaction((cur) => (cur && cur.holder === this.me.uid) ? { holder: nh, at: firebase.database.ServerValue.TIMESTAMP, fuse: 11000 + Math.floor(Math.random() * 6000), n: (cur.n || 0) + 1 } : undefined).then(() => { this.bombTry = false; this.bombBlock = performance.now() + 1500; }).catch(() => { this.bombTry = false; });
             if (this.myHp <= 0) { this.die('bomb'); }
+          }
+        }
+      }
+
+      // وضع العدوى
+      if (this.mode === 'infect' && this.myAlive) {
+        const inow = performance.now();
+        if (!this.infT0) this.infT0 = inow;
+        if (!this.infChosen && inow - this.infT0 > 3500) {
+          this.infChosen = true;
+          const uids = Object.keys(this.players).filter((u) => this.players[u] && this.players[u].alive !== false).concat(this.me.uid).sort();
+          if (uids[Math.abs(Math.floor(this.seed)) % uids.length] === this.me.uid) { this.inf = true; this.onFeed('🧟 انت أول مصاب! المس الناس عشان تعديهم'); this.shakeUntil = Math.max(this.shakeUntil, inow + 400); this.writeSelf(true); }
+        }
+        for (const pu in this.players) {
+          const pp = this.players[pu]; if (!pp) continue;
+          const was = this.infPrev[pu] || 0, nowI = pp.inf ? 1 : 0; this.infPrev[pu] = nowI;
+          if (!was && nowI && this.inf && typeof pp.x === 'number' && Math.hypot(pp.x - this.myX, pp.y - this.myY) < 140) { this.zpts = (this.zpts || 0) + 4; this.onFeed('🧟 عديت ' + (pp.name || 'لاعب') + ' (+٤)'); this.writeSelf(true); }
+        }
+        if (this.infChosen && !this.inf) {
+          this.infAcc += dt; if (this.infAcc >= 1) { this.infAcc -= 1; this.zpts = (this.zpts || 0) + 1; this.writeSelf(true); }
+          if (inow > this.infBlock) for (const pu in this.players) {
+            const pp = this.players[pu];
+            if (!pp || !pp.inf || pp.alive === false || typeof pp.x !== 'number') continue;
+            if (Math.hypot(pp.x - this.myX, pp.y - this.myY) < 52) {
+              this.inf = true; this.onFeed('🧟 اتصبت! بقيت مصاب — عدّي الباقيين'); this.burst(this.myX, this.myY, '#7bed9f', 30, 340); this.shakeUntil = Math.max(this.shakeUntil, inow + 500); Sfx.boom && Sfx.boom(); this.writeSelf(true); break;
+            }
           }
         }
       }
@@ -1391,7 +1418,7 @@
       }
       // أضفني أنا
       rows.push({ uid: this.me.uid, name: this.me.name, avatar: this.me.avatar, kills: this.kills || 0, deaths: this.deaths || 0, zpts: this.zpts || 0 });
-      if (this.mode === 'zone' || this.mode === 'gems' || this.mode === 'flag' || this.mode === 'bomb') rows.sort((a, b) => b.zpts - a.zpts || b.kills - a.kills);
+      if (this.mode === 'zone' || this.mode === 'gems' || this.mode === 'flag' || this.mode === 'bomb' || this.mode === 'infect') rows.sort((a, b) => b.zpts - a.zpts || b.kills - a.kills);
       else rows.sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
       return rows;
     },
@@ -1628,6 +1655,7 @@
         const hp = isMe ? this.myHp : p.hp;
         const color = PALETTE[(p.color || 0) % PALETTE.length];
         ctx.globalAlpha = alive ? 1 : 0.3;
+        if (this.mode === 'infect' && (isMe ? this.inf : p.inf)) { ctx.save(); const ip = 0.6 + 0.4 * Math.sin(performance.now() / 150); ctx.strokeStyle = '#7bed9f'; ctx.shadowColor = '#2ed573'; ctx.shadowBlur = 18; ctx.lineWidth = 4; ctx.globalAlpha = alive ? ip : 0.2; ctx.beginPath(); ctx.arc(x, y, PLAYER_R + 8, 0, 6.283); ctx.stroke(); ctx.fillStyle = 'rgba(46,213,115,0.25)'; ctx.fill(); ctx.font = '18px sans-serif'; ctx.textAlign = 'center'; ctx.globalAlpha = 1; ctx.fillText('🧟', x, y - PLAYER_R - 22); ctx.restore(); }
         if (this.mode === 'team' || this.mode === 'coop') { const tm = this.teamOf(uid); if (tm >= 0) { ctx.save(); ctx.strokeStyle = this.mode === 'coop' ? '#2ed573' : tm ? '#3b82f6' : '#ef4444'; ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 12; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(x, y, PLAYER_R + 6, 0, 6.283); ctx.stroke(); ctx.restore(); } }
         // خط التصويب لي أنا
         if (isMe && alive) {
