@@ -222,11 +222,26 @@
 
       // العلم (وضع الاستحواذ على العلم)
       this.flag = null; this.flagBlock = 0; this.flagAcc = 0; this.flagTry = false;
+      this.bomb = null; this.bombBlock = 0; this.bombTry = false; this.bombAcc = 0; this._lastBombHolder = '';
       if (this.mode === 'flag') {
         const flagRef = roomRef.child('flag');
         const onFlag = flagRef.on('value', (s) => { this.flag = s.val(); });
         this.listeners.push({ ref: flagRef, ev: 'value', fn: onFlag });
         if (this.host) { const fp = this.freeSpot(mulberry32(((this.seed * 7 + 99) >>> 0))); flagRef.set({ holder: '', x: Math.round(fp.x), y: Math.round(fp.y) }).catch(() => {}); }
+      }
+
+      if (this.mode === 'bomb') {
+        const bombRef = roomRef.child('bomb');
+        const onBomb = bombRef.on('value', (s) => { this.bomb = s.val(); });
+        this.listeners.push({ ref: bombRef, ev: 'value', fn: onBomb });
+        if (this.host) {
+          setTimeout(() => {
+            if (!this.running) return;
+            const ids = Object.keys(this.players).concat([this.me.uid]).filter((v, i, a) => a.indexOf(v) === i);
+            const h0 = ids[Math.floor(Math.random() * ids.length)];
+            bombRef.set({ holder: h0, at: firebase.database.ServerValue.TIMESTAMP, fuse: 11000 + Math.floor(Math.random() * 6000), n: 0 }).catch(() => {});
+          }, 3000);
+        }
       }
 
       // علب الصحة
@@ -778,7 +793,7 @@
           if (len > 1) { mx /= len; my /= len; }
           const inIce = (this.icePools || []).some((ip) => performance.now() < ip.until && Math.hypot(this.myX - ip.x, this.myY - ip.y) < ip.r);
           const spd0 = dashing ? SPEED * 4.2 : performance.now() < this.speedUntil ? SPEED * 1.4 * (1 + 0.1 * this.up.spd) : SPEED * (1 + 0.1 * this.up.spd);
-          const spd = (inIce && !dashing ? spd0 * 0.45 : spd0) * (this.mode === 'flag' && this.flag && this.flag.holder === this.me.uid ? 0.88 : 1);
+          const spd = (inIce && !dashing ? spd0 * 0.45 : spd0) * (this.mode === 'flag' && this.flag && this.flag.holder === this.me.uid ? 0.88 : 1) * (this.mode === 'bomb' && this.bomb && this.bomb.holder === this.me.uid ? 1.12 : 1);
           let nx = this.myX + mx * spd * dt;
           let ny = this.myY + my * spd * dt;
           if (dashing && Math.random() < 0.7) this.burst(this.myX, this.myY, '#7bdff2', 2, 60);
@@ -861,6 +876,36 @@
         if (f.holder === this.me.uid && this.myAlive) {
           this.flagAcc += dt;
           if (this.flagAcc >= 1) { this.flagAcc -= 1; this.zpts = (this.zpts || 0) + 1; this.writeSelf(true); }
+        }
+      }
+
+      // لعبة القنبلة
+      if (this.mode === 'bomb' && this.bomb && this.bomb.holder) {
+        const bb = this.bomb, bnow = performance.now(), mine = bb.holder === this.me.uid;
+        if (bb.holder !== this._lastBombHolder) { this._lastBombHolder = bb.holder; if (mine) { this.bombBlock = bnow + 1500; this.onFeed('💣 القنبلة معاك! المس لاعب تاني عشان تديهاله'); this.shakeUntil = Math.max(this.shakeUntil, bnow + 250); if (Sfx.horn) Sfx.horn(); } else { const hn = this.players[bb.holder]; this.onFeed('💣 القنبلة مع ' + ((hn && hn.name) || 'لاعب')); } }
+        if (this.myAlive && !mine) { this.bombAcc += dt; if (this.bombAcc >= 1) { this.bombAcc -= 1; this.zpts = (this.zpts || 0) + 1; this.writeSelf(true); } }
+        if (mine && this.myAlive && !this.bombTry) {
+          if (bnow >= this.bombBlock) {
+            for (const pu in this.players) {
+              const pp = this.players[pu];
+              if (!pp || pp.alive === false || typeof pp.x !== 'number') continue;
+              if (Math.hypot(pp.x - this.myX, pp.y - this.myY) < 54) {
+                this.bombTry = true;
+                this.db.ref('rooms/' + this.roomCode + '/bomb').transaction((cur) => (cur && cur.holder === this.me.uid) ? Object.assign({}, cur, { holder: pu }) : undefined).then(() => { this.bombTry = false; this.bombBlock = performance.now() + 1500; this.onFeed('💣 مررت القنبلة!'); }).catch(() => { this.bombTry = false; });
+                break;
+              }
+            }
+          }
+          if (!this.bombTry && this.serverNow() >= bb.at + bb.fuse) {
+            this.bombTry = true;
+            this.rings.push({ x: this.myX, y: this.myY, age: 0, life: 0.7, R: 190 }); this.rings.push({ x: this.myX, y: this.myY, age: -0.1, life: 0.7, R: 120 }); this.burst(this.myX, this.myY, '#ff6b35', 50, 460); this.burst(this.myX, this.myY, '#ffd32a', 26, 320);
+            this.shakeUntil = Math.max(this.shakeUntil, bnow + 600); Sfx.boom(); this.onFeed('💥 القنبلة انفجرت فيك! -٧٠');
+            this.myHp -= 70; this.onHud(this.myHp); this.writeSelf(true);
+            const others = Object.keys(this.players).filter((u) => this.players[u] && this.players[u].alive !== false);
+            const nh = others.length ? others[Math.floor(Math.random() * others.length)] : this.me.uid;
+            this.db.ref('rooms/' + this.roomCode + '/bomb').transaction((cur) => (cur && cur.holder === this.me.uid) ? { holder: nh, at: firebase.database.ServerValue.TIMESTAMP, fuse: 11000 + Math.floor(Math.random() * 6000), n: (cur.n || 0) + 1 } : undefined).then(() => { this.bombTry = false; this.bombBlock = performance.now() + 1500; }).catch(() => { this.bombTry = false; });
+            if (this.myHp <= 0) { this.die('bomb'); }
+          }
         }
       }
 
@@ -1284,7 +1329,7 @@
       }
       // أضفني أنا
       rows.push({ uid: this.me.uid, name: this.me.name, avatar: this.me.avatar, kills: this.kills || 0, deaths: this.deaths || 0, zpts: this.zpts || 0 });
-      if (this.mode === 'zone' || this.mode === 'gems' || this.mode === 'flag') rows.sort((a, b) => b.zpts - a.zpts || b.kills - a.kills);
+      if (this.mode === 'zone' || this.mode === 'gems' || this.mode === 'flag' || this.mode === 'bomb') rows.sort((a, b) => b.zpts - a.zpts || b.kills - a.kills);
       else rows.sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
       return rows;
     },
@@ -1367,6 +1412,16 @@
         ctx.stroke();
       }
 
+      if (this.mode === 'bomb' && this.bomb && this.bomb.holder) {
+        const bh = this.bomb.holder, hq = bh === this.me.uid ? { x: this.myX, y: this.myY } : (this.players[bh] && typeof this.players[bh].x === 'number' ? this.players[bh] : null);
+        if (hq) {
+          const left = Math.max(0, this.bomb.at + this.bomb.fuse - this.serverNow()), pul = left < 4000 ? 1 + Math.sin(performance.now() / (60 + left / 40)) * 0.25 : 1;
+          ctx.save(); ctx.shadowColor = '#ff4757'; ctx.shadowBlur = 28; ctx.strokeStyle = 'rgba(255,71,87,' + (left < 4000 ? 0.9 : 0.55) + ')'; ctx.lineWidth = 4;
+          ctx.beginPath(); ctx.arc(hq.x, hq.y, (PLAYER_R + 12) * pul, 0, 6.283); ctx.stroke();
+          ctx.font = (34 * pul) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('💣', hq.x, hq.y - PLAYER_R - 34);
+          ctx.font = 'bold 16px Cairo, sans-serif'; ctx.fillStyle = left < 4000 ? '#ff4757' : '#fff'; ctx.lineWidth = 4; ctx.strokeStyle = '#000'; const tt = (left / 1000).toFixed(1); ctx.strokeText(tt, hq.x, hq.y - PLAYER_R - 60); ctx.fillText(tt, hq.x, hq.y - PLAYER_R - 60); ctx.restore();
+        }
+      }
       if (this.mode === 'flag' && this.flag) {
         const f = this.flag, hp2 = f.holder === this.me.uid ? { x: this.myX, y: this.myY } : (f.holder && this.players[f.holder] && typeof this.players[f.holder].x === 'number' ? this.players[f.holder] : null);
         const fx = hp2 ? hp2.x : f.x, fy = (hp2 ? hp2.y - 34 : f.y) + Math.sin(performance.now() / 300) * 3;
