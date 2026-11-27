@@ -526,8 +526,8 @@
       for (let k = 0; k < n; k++) {
         const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 77));
         let cls = '';
-        if (this.wave >= 6 && k % 4 === 0 && !this.bossRush) cls = 'rusher'; else if (this.wave >= 3 && k % 4 === 1) cls = 'sniper'; else if (this.wave >= 4 && k % 4 === 2) cls = 'tank'; else if (this.wave >= 5 && k % 4 === 3) cls = 'healer';
-        const CI = { sniper: ['🎯', '🎯 قناص', 70], tank: ['🛡️', '🛡️ دبابة', 220], healer: ['💚', '💚 مداوي', 70], rusher: ['💨', '💨 انتحاري', 60] }[cls];
+        if (this.wave >= 6 && k % 4 === 0 && !this.bossRush) cls = 'rusher'; else if (this.wave >= 3 && k % 4 === 1) cls = 'sniper'; else if (this.wave >= 4 && k % 4 === 2) cls = 'tank'; else if (this.wave >= 5 && k % 4 === 3) cls = (this.wave >= 8 && k % 8 === 7) ? 'splitter' : 'healer';
+        const CI = { sniper: ['🎯', '🎯 قناص', 70], tank: ['🛡️', '🛡️ دبابة', 220], healer: ['💚', '💚 مداوي', 70], rusher: ['💨', '💨 انتحاري', 60], splitter: ['🧬', '🧬 منقسم', 110] }[cls];
         const swarmHp = this.mod === 'swarm' && !cls ? 50 : 0;
         this.bots.push({ cls, av: CI ? CI[0] : '🤖', max: CI ? CI[2] : (swarmHp || MAX_HP), id: 'bot' + k, name: CI ? CI[1] + ' ' + (k + 1) : '🤖 بوت ' + (k + 1), x: p.x, y: p.y, hp: CI ? CI[2] : (swarmHp || MAX_HP), alive: true, angle: 0, lastFire: nowB + 1200 + k * 400, respawnAt: 0, phase: Math.random() * 6, color: 3 + (k % 5) });
       }
@@ -1283,6 +1283,7 @@
               this.burst(bt.x, bt.y, '#ff6b81', 8, 180);
               if (bt.hp <= 0) {
                 bt.alive = false; bt.respawnAt = performance.now() + 3000;
+                if (bt.cls === 'splitter' && !bt.mini) { for (let q = 0; q < 2; q++) { const ang = Math.random() * 6.28; this.bots.push({ cls: 'rusher', mini: 1, av: '🧬', max: 35, id: 'bot_m' + Math.floor(performance.now()) + q, name: '🧬 صغير', x: clamp(bt.x + Math.cos(ang) * 40, 40, WORLD - 40), y: clamp(bt.y + Math.sin(ang) * 40, 40, WORLD - 40), hp: 35, alive: true, angle: 0, lastFire: 0, respawnAt: 0, phase: Math.random() * 6, color: 5 }); } this.onFeed('🧬 المنقسم اتقسم لاتنين!'); }
                 if (this.up.boom) { for (const q of this.bots) { if (q !== bt && q.alive && Math.hypot(q.x - bt.x, q.y - bt.y) < 150) q.hp = Math.max(1, q.hp - 28 * this.up.boom); } this.rings.push({ x: bt.x, y: bt.y, age: 0, life: 0.5, R: 150 }); this.burst(bt.x, bt.y, '#ff9f43', 26, 380); }
                 this.burst(bt.x, bt.y, '#ffd32a', 28, 300);
                 this.onFeed('🤖 قضيت على ' + bt.name);
