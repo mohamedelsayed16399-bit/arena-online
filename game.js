@@ -1537,6 +1537,7 @@
         ctx.globalAlpha = 1; ctx.font = '34px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('☄️', mt.x + (1 - k) * 120, mt.y - (1 - k) * 380); ctx.restore();
       }
       for (const r of this.rings) {
+        if (r.age < 0) continue;
         const k = r.age / r.life;
         ctx.globalAlpha = 1 - k; ctx.strokeStyle = '#ff9f43'; ctx.lineWidth = 6 * (1 - k) + 1;
         ctx.beginPath(); ctx.arc(r.x, r.y, r.R * k, 0, Math.PI * 2); ctx.stroke();
