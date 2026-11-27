@@ -81,8 +81,26 @@
     return uid.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase();
   }
 
+  const CLASS_INFO = [
+    ['fighter', '⚔️', 'مقاتل', 'نار أسرع ١٢٪'],
+    ['tank', '🛡️', 'حارس', 'ضرر أقل ٣٠٪'],
+    ['ghost', '👻', 'شبح', 'أسرع + داش سريع'],
+    ['bomber', '💣', 'مفجّر', 'قنبلة كل ٤ ث']
+  ];
+  function renderClassPicker() {
+    const el = $('class-picker'); if (!el) return;
+    const cur = localStorage.getItem('arena_class') || 'fighter';
+    el.innerHTML = '';
+    CLASS_INFO.forEach(([k, ic, nm, ds]) => {
+      const b = document.createElement('button'); b.className = 'class-opt' + (k === cur ? ' sel' : '');
+      b.innerHTML = '<b>' + ic + '</b>' + nm + '<br><small>' + ds + '</small>';
+      b.onclick = () => { localStorage.setItem('arena_class', k); renderClassPicker(); toast(ic + ' كلاس ' + nm); };
+      el.appendChild(b);
+    });
+  }
   // ============ واجهة ============
   function bindUi() {
+    renderClassPicker();
     // الملف الشخصي
     $('btn-save-profile').onclick = () => {
       const name = $('input-name').value.trim();
@@ -958,10 +976,10 @@
   // نافذة "الجديد" مرة واحدة بعد التحديث
   setTimeout(() => {
     try {
-      if (localStorage.getItem('arena_wn') === 'r73') return;
+      if (localStorage.getItem('arena_wn') === 'r74') return;
       const w = $('whatsnew'); if (!w || !$('screen-home').classList.contains('active')) return;
       w.classList.remove('hidden');
-      $('btn-wn-ok').onclick = () => { w.classList.add('hidden'); localStorage.setItem('arena_wn', 'r73'); };
+      $('btn-wn-ok').onclick = () => { w.classList.add('hidden'); localStorage.setItem('arena_wn', 'r74'); };
     } catch (e) { /* ignore */ }
   }, 3500);
 })();
