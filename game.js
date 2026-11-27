@@ -237,7 +237,7 @@
 
       // العلم (وضع الاستحواذ على العلم)
       this.flag = null; this.flagBlock = 0; this.flagAcc = 0; this.flagTry = false;
-      this.inf = false; this.infAcc = 0; this.infBlock = 0; this.infT0 = 0; this.infChosen = false; this.infPrev = {}; this.bomb = null; this.bombBlock = 0; this.bombTry = false; this.bombAcc = 0; this._lastBombHolder = '';
+      this.mines = []; this.mineUntil = 0; this.mineNext = 0; this.inf = false; this.infAcc = 0; this.infBlock = 0; this.infT0 = 0; this.infChosen = false; this.infPrev = {}; this.bomb = null; this.bombBlock = 0; this.bombTry = false; this.bombAcc = 0; this._lastBombHolder = '';
       if (this.mode === 'flag') {
         const flagRef = roomRef.child('flag');
         const onFlag = flagRef.on('value', (s) => { this.flag = s.val(); });
@@ -763,7 +763,7 @@
           this.lastPickupSpawn = nowS;
           const rnd = mulberry32(((nowS & 0x7fffffff) >>> 0) ^ this.seed);
           const p = this.freeSpot(rnd);
-          const types = ['hp', 'speed', 'shield', 'rapid', 'triple', 'shotgun', 'homing', 'flame', 'magnet', 'drone', 'freeze', 'nuke', 'rail'];
+          const types = ['hp', 'speed', 'shield', 'rapid', 'triple', 'shotgun', 'homing', 'flame', 'magnet', 'drone', 'freeze', 'nuke', 'rail', 'mine'];
           const type = types[Math.floor(rnd() * types.length)];
           this.db.ref('rooms/' + this.roomCode + '/pickups').push({ x: Math.round(p.x), y: Math.round(p.y), t: type }).catch(() => {});
         }
@@ -953,6 +953,22 @@
         }
       }
 
+      // الألغام
+      if (this.myAlive) {
+        const mn = performance.now(); this.mines = this.mines || [];
+        if (mn < (this.mineUntil || 0) && mn > (this.mineNext || 0) && this.mines.length < 8) { this.mineNext = mn + 1100; this.mines.push({ x: this.myX, y: this.myY, at: mn, id: this.me.uid.slice(0, 4) + '_m' + Math.floor(mn) }); }
+        for (let mi = this.mines.length - 1; mi >= 0; mi--) {
+          const mm = this.mines[mi]; if (mn - mm.at < 700) continue;
+          let hit = this.bots.some((bt) => bt.alive && Math.hypot(bt.x - mm.x, bt.y - mm.y) < 55);
+          if (!hit) for (const pu in this.players) { const pp = this.players[pu]; if (pp && pp.alive !== false && typeof pp.x === 'number' && Math.hypot(pp.x - mm.x, pp.y - mm.y) < 55) { hit = true; break; } }
+          if (hit) {
+            this.mines.splice(mi, 1);
+            this.addGrenade({ id: mm.id, uid: this.me.uid, x: mm.x, y: mm.y, tx: mm.x, ty: mm.y });
+            this.db.ref('rooms/' + this.roomCode + '/events').push({ t: 'gren', id: mm.id, uid: this.me.uid, x: Math.round(mm.x), y: Math.round(mm.y), tx: Math.round(mm.x), ty: Math.round(mm.y), ts: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
+            this.onFeed('🪤 لغمك انفجر!');
+          }
+        }
+      }
       // وضع العدوى
       if (this.mode === 'infect' && this.myAlive) {
         const inow = performance.now();
@@ -1374,6 +1390,8 @@
             this.onFeed('💥 شوتجن ١٠ ثواني! ٥ طلقات في الضربة');
           } else if (type === 'drone') {
             this.droneTmpUntil = performance.now() + 15000; this.onFeed('🚁 درونين مساعدين ١٥ ثانية! بيضربوا أقرب بوت');
+          } else if (type === 'mine') {
+            this.mineUntil = performance.now() + 15000; this.onFeed('🪤 ألغام ١٥ ثانية! بتسيب ألغام مخفية وراك بتنفجر لما حد يقرب');
           } else if (type === 'rail') {
             this.weapon = 'rail'; this.weaponUntil = performance.now() + 12000; this.onFeed('💠 مدفع الريل ١٢ ثانية! طلقة سريعة جداً بتخترق وضررها ضخم');
           } else if (type === 'freeze') {
@@ -1489,6 +1507,11 @@
         ctx.beginPath(); ctx.arc(stm.x, stm.y, stm.r, 0, Math.PI * 2); ctx.stroke();
       }
 
+      for (const mm of (this.mines || [])) {
+        const mk = performance.now() - mm.at > 700; ctx.save(); ctx.globalAlpha = mk ? 0.55 + 0.4 * Math.sin(performance.now() / 180) : 0.25;
+        ctx.fillStyle = '#2d3436'; ctx.strokeStyle = '#ff4757'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(mm.x, mm.y, 11, 0, 6.283); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#ff4757'; ctx.beginPath(); ctx.arc(mm.x, mm.y, 3.5, 0, 6.283); ctx.fill(); ctx.restore();
+      }
       for (const po of (this.portals || [])) {
         const pt = performance.now() / 1000, dst = this.portals[po.to];
         ctx.save(); ctx.translate(po.x, po.y);
@@ -1584,7 +1607,7 @@
       for (const pid in this.pickups) {
         const pk = this.pickups[pid];
         const type = pk.t || 'hp';
-        const col = type === 'speed' ? '#ffa502' : type === 'shield' ? '#1e90ff' : type === 'rapid' ? '#a55eea' : type === 'triple' ? '#fd79a8' : type === 'shotgun' ? '#ff6348' : type === 'homing' ? '#ff9f43' : type === 'flame' ? '#ff4500' : type === 'rail' ? '#ff3df5' : type === 'freeze' ? '#74d7ff' : type === 'nuke' ? '#badc58' : type === 'magnet' ? '#e84393' : type === 'drone' ? '#00cec9' : '#2ed573';
+        const col = type === 'speed' ? '#ffa502' : type === 'shield' ? '#1e90ff' : type === 'rapid' ? '#a55eea' : type === 'triple' ? '#fd79a8' : type === 'shotgun' ? '#ff6348' : type === 'homing' ? '#ff9f43' : type === 'flame' ? '#ff4500' : type === 'mine' ? '#ff6348' : type === 'rail' ? '#ff3df5' : type === 'freeze' ? '#74d7ff' : type === 'nuke' ? '#badc58' : type === 'magnet' ? '#e84393' : type === 'drone' ? '#00cec9' : '#2ed573';
         ctx.fillStyle = col;
         ctx.shadowColor = col; ctx.shadowBlur = 12;
         roundRect(ctx, pk.x - 13, pk.y - 13, 26, 26, 7);
@@ -1597,7 +1620,7 @@
         } else {
           ctx.font = '16px serif';
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText(type === 'speed' ? '👟' : type === 'rapid' ? '🔫' : type === 'triple' ? '🔱' : type === 'shotgun' ? '💥' : type === 'homing' ? '🚀' : type === 'flame' ? '🔥' : type === 'rail' ? '💠' : type === 'freeze' ? '❄️' : type === 'nuke' ? '☢️' : type === 'magnet' ? '🧲' : type === 'drone' ? '🚁' : '🛡️', pk.x, pk.y + 1);
+          ctx.fillText(type === 'speed' ? '👟' : type === 'rapid' ? '🔫' : type === 'triple' ? '🔱' : type === 'shotgun' ? '💥' : type === 'homing' ? '🚀' : type === 'flame' ? '🔥' : type === 'mine' ? '🪤' : type === 'rail' ? '💠' : type === 'freeze' ? '❄️' : type === 'nuke' ? '☢️' : type === 'magnet' ? '🧲' : type === 'drone' ? '🚁' : '🛡️', pk.x, pk.y + 1);
         }
       }
 
