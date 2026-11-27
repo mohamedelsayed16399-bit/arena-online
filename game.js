@@ -1181,7 +1181,7 @@
             }
           } else if (Math.hypot(b.x - this.myX, b.y - this.myY) < PLAYER_R + 4) {
             dead = true;
-            this.myHp -= BULLET_DMG * (String(b.uid).indexOf('bot') === 0 ? Math.pow(0.82, this.up.arm) * (this.mod === 'rage' ? 1.5 : 1) : 1);
+            this.myHp -= BULLET_DMG * (this.mode === 'oneshot' && String(b.uid).indexOf('bot') !== 0 ? 4 : 1) * (String(b.uid).indexOf('bot') === 0 ? Math.pow(0.82, this.up.arm) * (this.mod === 'rage' ? 1.5 : 1) : 1);
             this.onHud(this.myHp);
             this.writeSelf(true);
             this.db.ref('rooms/' + this.roomCode + '/events').push({
