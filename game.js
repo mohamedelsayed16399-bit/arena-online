@@ -595,7 +595,8 @@
       const laser = this.weapon === 'laser' && now < this.weaponUntil;
       const flame = this.weapon === 'flame' && now < this.weaponUntil;
       const rail = this.weapon === 'rail' && now < this.weaponUntil;
-      if (now - this.lastFire < (rail ? 850 : flame ? 75 : laser ? 200 : rapid ? 130 : shotgun ? 520 : homing ? 600 : FIRE_COOLDOWN) * Math.pow(0.85, this.up.rate) || !this.myAlive) return;
+      const boom = this.weapon === 'boom' && now < this.weaponUntil;
+      if (now - this.lastFire < (boom ? 700 : rail ? 850 : flame ? 75 : laser ? 200 : rapid ? 130 : shotgun ? 520 : homing ? 600 : FIRE_COOLDOWN) * Math.pow(0.85, this.up.rate) || !this.myAlive) return;
       this.lastFire = now; this.rs.shots++;
       const angs = shotgun ? [-0.4, -0.2, 0, 0.2, 0.4] : triple ? [-0.22, 0, 0.22] : [0];
       if (shotgun) { this.shakeUntil = Math.max(this.shakeUntil, now + 120); this.burst(this.myX + Math.cos(this.myAngle) * 30, this.myY + Math.sin(this.myAngle) * 30, '#ffa502', 10, 260); }
@@ -604,11 +605,11 @@
         const id = this.me.uid.slice(0, 4) + '_' + now + '_' + k + Math.floor(Math.random() * 999);
         const dx = Math.cos(a), dy = Math.sin(a);
         const bx = this.myX + dx * (PLAYER_R + 6), by = this.myY + dy * (PLAYER_R + 6);
-        this.bullets.push({ id, uid: this.me.uid, x: bx, y: by, dx, dy, age: 0, life: shotgun ? 0.5 : homing ? 1.8 : rail ? 0.9 : laser ? 1.1 : flame ? 0.3 : 0, h: homing, pierce: laser || flame || rail, flame, rail, sp: rail ? 2.4 : 1, dm: flame ? 0.45 : rail ? 4.4 : 0 });
+        this.bullets.push({ id, uid: this.me.uid, x: bx, y: by, dx, dy, age: 0, life: boom ? 3.2 : shotgun ? 0.5 : homing ? 1.8 : rail ? 0.9 : laser ? 1.1 : flame ? 0.3 : 0, h: homing, pierce: laser || flame || rail || boom, boom, flame, rail, sp: rail ? 2.4 : 1, dm: flame ? 0.45 : rail ? 4.4 : boom ? 1.6 : 0 });
         if (!flame) this.db.ref('rooms/' + this.roomCode + '/events').push({
           t: 'shoot', id, uid: this.me.uid,
           x: Math.round(bx), y: Math.round(by),
-          dx: Math.round(dx * 1000) / 1000, dy: Math.round(dy * 1000) / 1000, l: shotgun ? 0.5 : rail ? 0.9 : 0, rl: rail ? 1 : 0,
+          dx: Math.round(dx * 1000) / 1000, dy: Math.round(dy * 1000) / 1000, l: boom ? 0.8 : shotgun ? 0.5 : rail ? 0.9 : 0, rl: rail ? 1 : 0,
           ts: firebase.database.ServerValue.TIMESTAMP,
         }).catch(() => {});
       });
@@ -763,7 +764,7 @@
           this.lastPickupSpawn = nowS;
           const rnd = mulberry32(((nowS & 0x7fffffff) >>> 0) ^ this.seed);
           const p = this.freeSpot(rnd);
-          const types = ['hp', 'speed', 'shield', 'rapid', 'triple', 'shotgun', 'homing', 'flame', 'magnet', 'drone', 'freeze', 'nuke', 'rail', 'mine'];
+          const types = ['hp', 'speed', 'shield', 'rapid', 'triple', 'shotgun', 'homing', 'flame', 'magnet', 'drone', 'freeze', 'nuke', 'rail', 'mine', 'boom'];
           const type = types[Math.floor(rnd() * types.length)];
           this.db.ref('rooms/' + this.roomCode + '/pickups').push({ x: Math.round(p.x), y: Math.round(p.y), t: type }).catch(() => {});
         }
@@ -1204,6 +1205,16 @@
           }
           if (Math.random() < 0.6) this.burst(b.x, b.y, '#ff9f43', 1, 40);
         }
+        if (b.boom && b.uid === this.me.uid) {
+          if (b.age > 0.8) {
+            const ta = Math.atan2(this.myY - b.y, this.myX - b.x), cd = Math.cos(ta), sd = Math.sin(ta);
+            b.dx += (cd - b.dx) * Math.min(1, 6 * dt); b.dy += (sd - b.dy) * Math.min(1, 6 * dt);
+            const ln = Math.hypot(b.dx, b.dy) || 1; b.dx /= ln; b.dy /= ln;
+            if (Math.hypot(this.myX - b.x, this.myY - b.y) < PLAYER_R + 10) { this.bullets.splice(i, 1); this.burst(b.x, b.y, '#2ed573', 6, 120); continue; }
+          }
+          if (Math.random() < 0.5) this.burst(b.x, b.y, '#2ed573', 1, 50);
+          b.ang = (b.ang || 0) + 18 * dt;
+        }
         b.x += b.dx * BULLET_SPEED * (b.sp || 1) * dt;
         b.y += b.dy * BULLET_SPEED * (b.sp || 1) * dt;
         b.age += dt;
@@ -1392,6 +1403,8 @@
             this.droneTmpUntil = performance.now() + 15000; this.onFeed('🚁 درونين مساعدين ١٥ ثانية! بيضربوا أقرب بوت');
           } else if (type === 'mine') {
             this.mineUntil = performance.now() + 15000; this.onFeed('🪤 ألغام ١٥ ثانية! بتسيب ألغام مخفية وراك بتنفجر لما حد يقرب');
+          } else if (type === 'boom') {
+            this.weapon = 'boom'; this.weaponUntil = performance.now() + 14000; this.onFeed('🪃 بوميرانج ١٤ ثانية! بترميه ويرجعلك وبيضرب في الرايح والجاي');
           } else if (type === 'rail') {
             this.weapon = 'rail'; this.weaponUntil = performance.now() + 12000; this.onFeed('💠 مدفع الريل ١٢ ثانية! طلقة سريعة جداً بتخترق وضررها ضخم');
           } else if (type === 'freeze') {
@@ -1607,7 +1620,7 @@
       for (const pid in this.pickups) {
         const pk = this.pickups[pid];
         const type = pk.t || 'hp';
-        const col = type === 'speed' ? '#ffa502' : type === 'shield' ? '#1e90ff' : type === 'rapid' ? '#a55eea' : type === 'triple' ? '#fd79a8' : type === 'shotgun' ? '#ff6348' : type === 'homing' ? '#ff9f43' : type === 'flame' ? '#ff4500' : type === 'mine' ? '#ff6348' : type === 'rail' ? '#ff3df5' : type === 'freeze' ? '#74d7ff' : type === 'nuke' ? '#badc58' : type === 'magnet' ? '#e84393' : type === 'drone' ? '#00cec9' : '#2ed573';
+        const col = type === 'speed' ? '#ffa502' : type === 'shield' ? '#1e90ff' : type === 'rapid' ? '#a55eea' : type === 'triple' ? '#fd79a8' : type === 'shotgun' ? '#ff6348' : type === 'homing' ? '#ff9f43' : type === 'flame' ? '#ff4500' : type === 'mine' ? '#ff6348' : type === 'boom' ? '#2ed573' : type === 'rail' ? '#ff3df5' : type === 'freeze' ? '#74d7ff' : type === 'nuke' ? '#badc58' : type === 'magnet' ? '#e84393' : type === 'drone' ? '#00cec9' : '#2ed573';
         ctx.fillStyle = col;
         ctx.shadowColor = col; ctx.shadowBlur = 12;
         roundRect(ctx, pk.x - 13, pk.y - 13, 26, 26, 7);
@@ -1620,7 +1633,7 @@
         } else {
           ctx.font = '16px serif';
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText(type === 'speed' ? '👟' : type === 'rapid' ? '🔫' : type === 'triple' ? '🔱' : type === 'shotgun' ? '💥' : type === 'homing' ? '🚀' : type === 'flame' ? '🔥' : type === 'mine' ? '🪤' : type === 'rail' ? '💠' : type === 'freeze' ? '❄️' : type === 'nuke' ? '☢️' : type === 'magnet' ? '🧲' : type === 'drone' ? '🚁' : '🛡️', pk.x, pk.y + 1);
+          ctx.fillText(type === 'speed' ? '👟' : type === 'rapid' ? '🔫' : type === 'triple' ? '🔱' : type === 'shotgun' ? '💥' : type === 'homing' ? '🚀' : type === 'flame' ? '🔥' : type === 'mine' ? '🪤' : type === 'boom' ? '🪃' : type === 'rail' ? '💠' : type === 'freeze' ? '❄️' : type === 'nuke' ? '☢️' : type === 'magnet' ? '🧲' : type === 'drone' ? '🚁' : '🛡️', pk.x, pk.y + 1);
         }
       }
 
@@ -1628,6 +1641,7 @@
       for (const b of this.bullets) {
         let bcol = b.h ? '#ff9f43' : '#ffd32a';
         if (b.flame) { const fk = Math.min(1, b.age / 0.3); ctx.save(); ctx.globalAlpha = 0.85 - 0.6 * fk; ctx.fillStyle = fk < 0.4 ? '#ffe066' : fk < 0.7 ? '#ff9f1a' : '#ff4500'; ctx.shadowColor = '#ff6b00'; ctx.shadowBlur = 14; ctx.beginPath(); ctx.arc(b.x, b.y, 6 + 16 * fk, 0, 6.283); ctx.fill(); ctx.restore(); continue; }
+        if (b.boom) { ctx.save(); ctx.translate(b.x, b.y); ctx.rotate((b.ang || 0)); ctx.shadowColor = '#2ed573'; ctx.shadowBlur = 16; ctx.font = '30px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🪃', 0, 0); ctx.restore(); continue; }
         if (b.rail) { ctx.save(); ctx.strokeStyle = '#ff3df5'; ctx.shadowColor = '#ff3df5'; ctx.shadowBlur = 22; ctx.globalAlpha = 0.9; ctx.lineWidth = 10; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.dx * 380, b.y - b.dy * 380); ctx.stroke(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3.5; ctx.stroke(); ctx.restore(); continue; }
         if (b.pierce) { ctx.save(); ctx.strokeStyle = '#00f5ff'; ctx.shadowColor = '#00f5ff'; ctx.shadowBlur = 18; ctx.globalAlpha = 0.85; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.dx * 120, b.y - b.dy * 120); ctx.stroke(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke(); ctx.restore(); continue; }
         if (b.uid === this.me.uid && !b.h) { bcol = this.bulletColor(); if (bcol === 'rainbow') bcol = 'hsl(' + ((performance.now() / 4 + b.x) % 360) + ',95%,60%)'; }
@@ -1868,8 +1882,8 @@
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       const wl = this.weaponUntil - performance.now();
       if (this.myAlive && wl > 0) {
-        ctx.font = 'bold 14px Cairo, sans-serif'; ctx.fillStyle = this.weapon === 'rail' ? '#ff3df5' : this.weapon === 'flame' ? '#ff4500' : this.weapon === 'laser' ? '#00f5ff' : this.weapon === 'rapid' ? '#a55eea' : this.weapon === 'shotgun' ? '#ff6348' : this.weapon === 'homing' ? '#ff9f43' : '#fd79a8';
-        ctx.fillText((this.weapon === 'rail' ? '💠 ريل ' : this.weapon === 'flame' ? '🔥 لهب ' : this.weapon === 'laser' ? '⚡ ليزر ' : this.weapon === 'rapid' ? '🔫 رشاش ' : this.weapon === 'shotgun' ? '💥 شوتجن ' : this.weapon === 'homing' ? '🚀 موجّه ' : '🔱 ثلاثي ') + Math.ceil(wl / 1000) + 'ث', innerWidth / 2, innerHeight - 170);
+        ctx.font = 'bold 14px Cairo, sans-serif'; ctx.fillStyle = this.weapon === 'boom' ? '#2ed573' : this.weapon === 'rail' ? '#ff3df5' : this.weapon === 'flame' ? '#ff4500' : this.weapon === 'laser' ? '#00f5ff' : this.weapon === 'rapid' ? '#a55eea' : this.weapon === 'shotgun' ? '#ff6348' : this.weapon === 'homing' ? '#ff9f43' : '#fd79a8';
+        ctx.fillText((this.weapon === 'boom' ? '🪃 بوميرانج ' : this.weapon === 'rail' ? '💠 ريل ' : this.weapon === 'flame' ? '🔥 لهب ' : this.weapon === 'laser' ? '⚡ ليزر ' : this.weapon === 'rapid' ? '🔫 رشاش ' : this.weapon === 'shotgun' ? '💥 شوتجن ' : this.weapon === 'homing' ? '🚀 موجّه ' : '🔱 ثلاثي ') + Math.ceil(wl / 1000) + 'ث', innerWidth / 2, innerHeight - 170);
       }
       if (performance.now() < (this.freezeUntil || 0) || performance.now() < (this.nukeFlash || 0)) {
         const fn = performance.now(), nf = fn < (this.nukeFlash || 0);
