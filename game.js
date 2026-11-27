@@ -526,8 +526,8 @@
       for (let k = 0; k < n; k++) {
         const p = this.freeSpot(mulberry32((Date.now() & 0xffff) + k * 77));
         let cls = '';
-        if (this.wave >= 3 && k % 4 === 1) cls = 'sniper'; else if (this.wave >= 4 && k % 4 === 2) cls = 'tank'; else if (this.wave >= 5 && k % 4 === 3) cls = 'healer';
-        const CI = { sniper: ['🎯', '🎯 قناص', 70], tank: ['🛡️', '🛡️ دبابة', 220], healer: ['💚', '💚 مداوي', 70] }[cls];
+        if (this.wave >= 6 && k % 4 === 0 && !this.bossRush) cls = 'rusher'; else if (this.wave >= 3 && k % 4 === 1) cls = 'sniper'; else if (this.wave >= 4 && k % 4 === 2) cls = 'tank'; else if (this.wave >= 5 && k % 4 === 3) cls = 'healer';
+        const CI = { sniper: ['🎯', '🎯 قناص', 70], tank: ['🛡️', '🛡️ دبابة', 220], healer: ['💚', '💚 مداوي', 70], rusher: ['💨', '💨 انتحاري', 60] }[cls];
         const swarmHp = this.mod === 'swarm' && !cls ? 50 : 0;
         this.bots.push({ cls, av: CI ? CI[0] : '🤖', max: CI ? CI[2] : (swarmHp || MAX_HP), id: 'bot' + k, name: CI ? CI[1] + ' ' + (k + 1) : '🤖 بوت ' + (k + 1), x: p.x, y: p.y, hp: CI ? CI[2] : (swarmHp || MAX_HP), alive: true, angle: 0, lastFire: nowB + 1200 + k * 400, respawnAt: 0, phase: Math.random() * 6, color: 3 + (k % 5) });
       }
@@ -1089,6 +1089,15 @@
         if (dist > 380) { mvx = tx; mvy = ty; }
         else if (dist < 220) { mvx = -tx; mvy = -ty; }
         else { const s = Math.sin(nowB / 900 + bt.phase) > 0 ? 1 : -1; mvx = -ty * s; mvy = tx * s; }
+        if (bt.cls === 'rusher') {
+          mvx = tx; mvy = ty;
+          if (this.myAlive && dist < 48) {
+            bt.alive = false; bt.hp = 0; bt.respawnAt = nowB + 3000;
+            this.rings.push({ x: bt.x, y: bt.y, age: 0, life: 0.5, R: 110 }); this.burst(bt.x, bt.y, '#ff4757', 30, 380); Sfx.boom && Sfx.boom();
+            if (nowB > this.protectedUntil) { if (nowB < this.shieldUntil) this.onFeed('🛡️ الدرع صدّ الانتحاري!'); else { this.myHp -= 30 * CL().dmg; this.onHud(this.myHp); this.shakeUntil = Math.max(this.shakeUntil, nowB + 250); this.onFeed('💨 انتحاري فجّر نفسه فيك!'); if (this.myHp <= 0) this.die(bt.id); } }
+            continue;
+          }
+        }
         if (bt.cls === 'sniper') { if (dist > 800) { mvx = tx; mvy = ty; } else if (dist < 520) { mvx = -tx; mvy = -ty; } else { const s2 = Math.sin(nowB / 1500 + bt.phase) > 0 ? 1 : -1; mvx = -ty * s2; mvy = tx * s2; } }
         if (bt.cls === 'healer') {
           if (dist < 450) { mvx = -tx; mvy = -ty; } else if (dist > 700) { mvx = tx; mvy = ty; }
@@ -1204,7 +1213,7 @@
           this.burst(bt.x, bt.y, '#a55eea', 20, 320); Sfx.boom();
         }
         if (bt.chargeUntil || bt.chargeAt) { mvx = 0; mvy = 0; }
-        let nx = clamp(bt.x + mvx * lvl.spd * (bt.cls === 'tank' ? 0.6 : 1) * (this.mod === 'fast' ? 1.4 : 1) * dt, PLAYER_R, WORLD - PLAYER_R), ny = clamp(bt.y + mvy * lvl.spd * (bt.cls === 'tank' ? 0.6 : 1) * (this.mod === 'fast' ? 1.4 : 1) * dt, PLAYER_R, WORLD - PLAYER_R);
+        let nx = clamp(bt.x + mvx * lvl.spd * (bt.cls === 'tank' ? 0.6 : bt.cls === 'rusher' ? 1.7 : 1) * (this.mod === 'fast' ? 1.4 : 1) * dt, PLAYER_R, WORLD - PLAYER_R), ny = clamp(bt.y + mvy * lvl.spd * (bt.cls === 'tank' ? 0.6 : bt.cls === 'rusher' ? 1.7 : 1) * (this.mod === 'fast' ? 1.4 : 1) * dt, PLAYER_R, WORLD - PLAYER_R);
         for (const o of this.obstacles) {
           if (circleRect(nx, ny, PLAYER_R, o)) {
             if (!circleRect(nx, bt.y, PLAYER_R, o)) ny = bt.y;
@@ -1213,7 +1222,7 @@
           }
         }
         bt.x = nx; bt.y = ny;
-        if (this.myAlive && bt.cls !== 'healer' && dist < (bt.cls === 'sniper' ? 950 : 650) && nowB - bt.lastFire > lvl.fire * (bt.cls === 'sniper' ? 1.7 : 1)) {
+        if (this.myAlive && bt.cls !== 'healer' && bt.cls !== 'rusher' && dist < (bt.cls === 'sniper' ? 950 : 650) && nowB - bt.lastFire > lvl.fire * (bt.cls === 'sniper' ? 1.7 : 1)) {
           bt.lastFire = nowB + Math.random() * 500;
           const a = bt.angle + (Math.random() - 0.5) * lvl.err * (bt.cls === 'sniper' ? 0.15 : 1);
           (bt.boss ? [-0.25, 0, 0.25] : bt.cls === 'tank' ? [-0.1, 0.1] : [0]).forEach((off, q) => { const a2 = a + off; this.bullets.push({ life: bt.cls === 'sniper' ? 1.5 : 0, id: bt.id + '_' + Math.floor(nowB) + '_' + q, uid: bt.id, x: bt.x + Math.cos(a2) * (PLAYER_R + 6), y: bt.y + Math.sin(a2) * (PLAYER_R + 6), dx: Math.cos(a2), dy: Math.sin(a2), age: 0 }); });
