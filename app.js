@@ -204,6 +204,7 @@
     $('btn-start-coop').onclick = () => hostStartRound('coop');
     $('btn-start-flag').onclick = () => hostStartRound('flag');
     $('btn-start-bomb').onclick = () => hostStartRound('bomb');
+    $('btn-start-infect').onclick = () => hostStartRound('infect');
     $('btn-start-oneshot').onclick = () => hostStartRound('oneshot');
     $('btn-start-gems').onclick = () => hostStartRound('gems');
     $('btn-start-storm').onclick = () => hostStartRound('storm');
@@ -474,6 +475,7 @@
     $('btn-start-coop').classList.toggle('hidden', !isHost);
     $('btn-start-flag').classList.toggle('hidden', !isHost);
     $('btn-start-bomb').classList.toggle('hidden', !isHost);
+    $('btn-start-infect').classList.toggle('hidden', !isHost);
     $('btn-start-oneshot').classList.toggle('hidden', !isHost);
     $('btn-start-gems').classList.toggle('hidden', !isHost);
     $('btn-start-storm').classList.toggle('hidden', !isHost);
@@ -518,7 +520,7 @@
   function hostStartRound(mode) {
     window._lastMode = mode;
     if (!isHost || !roomCode) return;
-    const secs = mode === 'blitz' ? 60 : mode === 'zone' ? 90 : mode === 'team' ? 90 : mode === 'flag' ? 90 : mode === 'bomb' ? 90 : mode === 'oneshot' ? 75 : mode === 'gems' ? 90 : mode === 'storm' ? 90 : ROUND_SECONDS;
+    const secs = mode === 'blitz' ? 60 : mode === 'zone' ? 90 : mode === 'team' ? 90 : mode === 'flag' ? 90 : mode === 'bomb' ? 90 : mode === 'oneshot' ? 75 : mode === 'infect' ? 90 : mode === 'gems' ? 90 : mode === 'storm' ? 90 : ROUND_SECONDS;
     const endsAt = Date.now() + secs * 1000 + 4000; // +٤ ثواني هامش سيرفر
     db.ref('rooms/' + roomCode + '/state').set({
       endsAt,
@@ -573,7 +575,7 @@
   function startGame(endsAt, mode) {
     if ($('screen-game').classList.contains('active') && window.ArenaGame.running) return;
     show('game');
-    $('hud-mode').textContent = mode === 'flag' ? '🚩 العلم' : mode === 'bomb' ? '💣 القنبلة' : mode === 'oneshot' ? '🎯 ضربة واحدة' : mode === 'coop' ? '🤝 تعاون' : mode === 'team' ? '🔴🔵 فريق ضد فريق' : mode === 'blitz' ? '⚡ بليتز' : mode === 'zone' ? '🎯 السيطرة' : mode === 'gems' ? '💎 صيد الجواهر' : mode === 'storm' ? '🌪️ العاصفة' : '';
+    $('hud-mode').textContent = mode === 'flag' ? '🚩 العلم' : mode === 'bomb' ? '💣 القنبلة' : mode === 'oneshot' ? '🎯 ضربة واحدة' : mode === 'infect' ? '🧟 العدوى' : mode === 'coop' ? '🤝 تعاون' : mode === 'team' ? '🔴🔵 فريق ضد فريق' : mode === 'blitz' ? '⚡ بليتز' : mode === 'zone' ? '🎯 السيطرة' : mode === 'gems' ? '💎 صيد الجواهر' : mode === 'storm' ? '🌪️ العاصفة' : '';
     maybeTutorial();
     ArenaGame.start({
       db, roomCode,
@@ -651,7 +653,7 @@
       d.innerHTML = `<span class="r-rank">${medals[i] || (i + 1)}</span>
         <span>${r.avatar || '🦊'}</span>
         <span class="r-name">${ArenaGame.mode === 'team' ? (ArenaGame.teamOf(r.uid) === 0 ? '🔴 ' : ArenaGame.teamOf(r.uid) === 1 ? '🔵 ' : '') : ''}${esc(r.name)}${r.uid === uid ? ' (انت)' : ''}</span>
-        <span class="r-score">${ArenaGame.mode === 'flag' ? '🚩 ' + (r.zpts || 0) + ' | ' : ''}${ArenaGame.mode === 'bomb' ? '💣 ' + (r.zpts || 0) + ' | ' : ''}${ArenaGame.mode === 'gems' ? '💎 ' + (r.zpts || 0) + ' | ' : ''}${ArenaGame.mode === 'zone' ? '🎯 ' + (r.zpts || 0) + ' | ' : ''}☠️ ${r.kills} | 💀 ${r.deaths}</span>`;
+        <span class="r-score">${ArenaGame.mode === 'flag' ? '🚩 ' + (r.zpts || 0) + ' | ' : ''}${ArenaGame.mode === 'infect' ? '🧟 ' + (r.zpts || 0) + ' | ' : ''}${ArenaGame.mode === 'bomb' ? '💣 ' + (r.zpts || 0) + ' | ' : ''}${ArenaGame.mode === 'gems' ? '💎 ' + (r.zpts || 0) + ' | ' : ''}${ArenaGame.mode === 'zone' ? '🎯 ' + (r.zpts || 0) + ' | ' : ''}☠️ ${r.kills} | 💀 ${r.deaths}</span>`;
       list.appendChild(d);
     });
     (function () {
