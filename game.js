@@ -754,7 +754,7 @@
           this.lastPickupSpawn = nowS;
           const rnd = mulberry32(((nowS & 0x7fffffff) >>> 0) ^ this.seed);
           const p = this.freeSpot(rnd);
-          const types = ['hp', 'speed', 'shield', 'rapid', 'triple', 'shotgun', 'homing', 'flame', 'magnet', 'drone'];
+          const types = ['hp', 'speed', 'shield', 'rapid', 'triple', 'shotgun', 'homing', 'flame', 'magnet', 'drone', 'freeze', 'nuke'];
           const type = types[Math.floor(rnd() * types.length)];
           this.db.ref('rooms/' + this.roomCode + '/pickups').push({ x: Math.round(p.x), y: Math.round(p.y), t: type }).catch(() => {});
         }
@@ -992,6 +992,7 @@
         if (!bt.alive) {
           continue;
         }
+        if (performance.now() < (this.freezeUntil || 0)) continue;
         const dxm = this.myX - bt.x, dym = this.myY - bt.y, dist = Math.hypot(dxm, dym) || 1;
         const tx = this.myAlive ? dxm / dist : Math.cos(bt.phase), ty = this.myAlive ? dym / dist : Math.sin(bt.phase);
         bt.angle = Math.atan2(ty, tx);
@@ -1310,6 +1311,16 @@
             this.onFeed('💥 شوتجن ١٠ ثواني! ٥ طلقات في الضربة');
           } else if (type === 'drone') {
             this.droneTmpUntil = performance.now() + 15000; this.onFeed('🚁 درونين مساعدين ١٥ ثانية! بيضربوا أقرب بوت');
+          } else if (type === 'freeze') {
+            this.freezeUntil = performance.now() + 6000; this.onFeed('❄️ تجميد! كل البوتات متجمدة ٦ ثواني'); this.burst(this.myX, this.myY, '#9be7ff', 24, 300);
+          } else if (type === 'nuke') {
+            const R = 650, nn = performance.now(); this.rings.push({ x: this.myX, y: this.myY, age: 0, life: 0.9, R }); this.nukeFlash = nn + 450; this.shakeUntil = Math.max(this.shakeUntil, nn + 600); Sfx.boom();
+            this.burst(this.myX, this.myY, '#ffd32a', 50, 520); this.onFeed('☢️ نووي! ضرر ٧٠ لكل البوتات القريبة');
+            for (const bt of this.bots) {
+              if (!bt.alive || Math.hypot(bt.x - this.myX, bt.y - this.myY) > R) continue;
+              bt.hp -= 70; this.burst(bt.x, bt.y, '#ff6b81', 10, 200);
+              if (bt.hp <= 0) { bt.alive = false; bt.respawnAt = nn + 3000; this.burst(bt.x, bt.y, '#ffd32a', 28, 300); this.onFeed('☢️ أبدت ' + bt.name); Sfx.kill(); this.ach('kill'); this.db.ref('rooms/' + this.roomCode + '/players/' + this.me.uid + '/kills').transaction((k) => (k || 0) + 1).catch(() => {}); }
+            }
           } else if (type === 'magnet') {
             this.magnetUntil = performance.now() + 10000; this.onFeed('🧲 مغناطيس ١٠ ثواني! بيجذب كل العلب في دايرة كبيرة');
           } else if (type === 'flame') {
@@ -1502,7 +1513,7 @@
       for (const pid in this.pickups) {
         const pk = this.pickups[pid];
         const type = pk.t || 'hp';
-        const col = type === 'speed' ? '#ffa502' : type === 'shield' ? '#1e90ff' : type === 'rapid' ? '#a55eea' : type === 'triple' ? '#fd79a8' : type === 'shotgun' ? '#ff6348' : type === 'homing' ? '#ff9f43' : type === 'flame' ? '#ff4500' : type === 'magnet' ? '#e84393' : type === 'drone' ? '#00cec9' : '#2ed573';
+        const col = type === 'speed' ? '#ffa502' : type === 'shield' ? '#1e90ff' : type === 'rapid' ? '#a55eea' : type === 'triple' ? '#fd79a8' : type === 'shotgun' ? '#ff6348' : type === 'homing' ? '#ff9f43' : type === 'flame' ? '#ff4500' : type === 'freeze' ? '#74d7ff' : type === 'nuke' ? '#badc58' : type === 'magnet' ? '#e84393' : type === 'drone' ? '#00cec9' : '#2ed573';
         ctx.fillStyle = col;
         ctx.shadowColor = col; ctx.shadowBlur = 12;
         roundRect(ctx, pk.x - 13, pk.y - 13, 26, 26, 7);
@@ -1515,7 +1526,7 @@
         } else {
           ctx.font = '16px serif';
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText(type === 'speed' ? '👟' : type === 'rapid' ? '🔫' : type === 'triple' ? '🔱' : type === 'shotgun' ? '💥' : type === 'homing' ? '🚀' : type === 'flame' ? '🔥' : type === 'magnet' ? '🧲' : type === 'drone' ? '🚁' : '🛡️', pk.x, pk.y + 1);
+          ctx.fillText(type === 'speed' ? '👟' : type === 'rapid' ? '🔫' : type === 'triple' ? '🔱' : type === 'shotgun' ? '💥' : type === 'homing' ? '🚀' : type === 'flame' ? '🔥' : type === 'freeze' ? '❄️' : type === 'nuke' ? '☢️' : type === 'magnet' ? '🧲' : type === 'drone' ? '🚁' : '🛡️', pk.x, pk.y + 1);
         }
       }
 
@@ -1757,6 +1768,13 @@
       if (this.myAlive && wl > 0) {
         ctx.font = 'bold 14px Cairo, sans-serif'; ctx.fillStyle = this.weapon === 'flame' ? '#ff4500' : this.weapon === 'laser' ? '#00f5ff' : this.weapon === 'rapid' ? '#a55eea' : this.weapon === 'shotgun' ? '#ff6348' : this.weapon === 'homing' ? '#ff9f43' : '#fd79a8';
         ctx.fillText((this.weapon === 'flame' ? '🔥 لهب ' : this.weapon === 'laser' ? '⚡ ليزر ' : this.weapon === 'rapid' ? '🔫 رشاش ' : this.weapon === 'shotgun' ? '💥 شوتجن ' : this.weapon === 'homing' ? '🚀 موجّه ' : '🔱 ثلاثي ') + Math.ceil(wl / 1000) + 'ث', innerWidth / 2, innerHeight - 170);
+      }
+      if (performance.now() < (this.freezeUntil || 0) || performance.now() < (this.nukeFlash || 0)) {
+        const fn = performance.now(), nf = fn < (this.nukeFlash || 0);
+        ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+        if (nf) { ctx.fillStyle = 'rgba(255,255,220,' + (0.7 * ((this.nukeFlash - fn) / 450)) + ')'; ctx.fillRect(0, 0, innerWidth, innerHeight); }
+        else { const fl = (this.freezeUntil - fn) / 1000; ctx.fillStyle = 'rgba(120,200,255,' + (fl < 1 ? 0.12 * fl : 0.12) + ')'; ctx.fillRect(0, 0, innerWidth, innerHeight); ctx.textAlign = 'center'; ctx.fillStyle = '#9be7ff'; ctx.font = 'bold 16px Cairo, sans-serif'; ctx.fillText('❄️ تجميد ' + fl.toFixed(1) + 'ث', innerWidth / 2, 100); }
+        ctx.restore();
       }
       if (!this.myAlive && this.killCamName) {
         const kk = this.killCam ? Math.min(1, (performance.now() - this.killCam.t0) / 300) : 1, bh = 46 * kk;
