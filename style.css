@@ -206,3 +206,6 @@ input:focus { border-color:var(--primary); }
 .class-opt{background:#141a33;border:2px solid #2a335a;border-radius:12px;color:#fff;padding:8px 2px;font-family:inherit;font-size:12px;line-height:1.3;cursor:pointer}
 .class-opt b{display:block;font-size:20px}
 .class-opt.sel{border-color:#ff4757;background:#26203f;box-shadow:0 0 12px rgba(255,71,87,.45)}
+
+.skill-btn { bottom:170px; right:100px; background:rgba(250,204,21,.22); border-color:rgba(250,204,21,.8); }
+@media (min-width:641px) { .skill-btn { bottom:90px; right:115px; } }
