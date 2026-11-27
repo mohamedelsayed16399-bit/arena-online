@@ -977,10 +977,10 @@
   // نافذة "الجديد" مرة واحدة بعد التحديث
   setTimeout(() => {
     try {
-      if (localStorage.getItem('arena_wn') === 'r76') return;
+      if (localStorage.getItem('arena_wn') === 'r77') return;
       const w = $('whatsnew'); if (!w || !$('screen-home').classList.contains('active')) return;
       w.classList.remove('hidden');
-      $('btn-wn-ok').onclick = () => { w.classList.add('hidden'); localStorage.setItem('arena_wn', 'r76'); };
+      $('btn-wn-ok').onclick = () => { w.classList.add('hidden'); localStorage.setItem('arena_wn', 'r77'); };
     } catch (e) { /* ignore */ }
   }, 3500);
 })();
