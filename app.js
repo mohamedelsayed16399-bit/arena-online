@@ -188,6 +188,30 @@
     $('btn-missions').onclick = () => { renderMissions(); show('missions'); };
     $('btn-back-from-missions').onclick = () => show('home');
     $('btn-shop').onclick = () => { renderShop(); show('shop'); };
+    {
+      const META = [['dmg', '🔥', 'ضرر أعلى'], ['spd', '👟', 'سرعة'], ['rate', '⚡', 'تصويب أسرع'], ['arm', '🛡️', 'دروع']];
+      const getM = () => { try { return JSON.parse(localStorage.getItem('arena_meta') || '{}'); } catch (e) { return {}; } };
+      const mb = document.createElement('button'); mb.id = 'btn-meta'; mb.className = 'btn btn-ghost'; mb.textContent = '⭐ تطويرات دائمة (وضع الموجات)';
+      $('btn-shop').parentNode.insertBefore(mb, $('btn-shop').nextSibling);
+      mb.onclick = () => {
+        let ov = $('meta-ov'); if (!ov) { ov = document.createElement('div'); ov.id = 'meta-ov'; ov.style.cssText = 'position:absolute;inset:0;z-index:40;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center'; document.body.appendChild(ov); }
+        const draw = () => {
+          const m = getM();
+          ov.innerHTML = '<div class="tut-card"><h3>⭐ تطويرات دائمة</h3><p>بتبدأ بيها كل جولة موجات/زعماء. 🪙 ' + coinsNow() + '</p></div>';
+          const card = ov.firstChild;
+          META.forEach(([k, ic, nm]) => {
+            const lv = Math.min(5, m[k] | 0), price = 150 * (lv + 1);
+            const b = document.createElement('button'); b.className = 'btn btn-secondary'; b.style.cssText = 'display:block;width:100%;margin:6px 0';
+            b.textContent = ic + ' ' + nm + ' — مستوى ' + lv + '/5' + (lv >= 5 ? ' ✅' : ' — 🪙 ' + price);
+            b.onclick = () => { if (lv >= 5) return; if (coinsNow() < price) { toast('عملاتك مش كفاية'); return; } localStorage.setItem('arena_coins', String(coinsNow() - price)); m[k] = lv + 1; localStorage.setItem('arena_meta', JSON.stringify(m)); updShopBtn(); draw(); };
+            card.appendChild(b);
+          });
+          const c = document.createElement('button'); c.className = 'btn btn-primary btn-big'; c.textContent = 'تمام'; c.onclick = () => { ov.style.display = 'none'; }; card.appendChild(c);
+          ov.style.display = 'flex';
+        };
+        draw();
+      };
+    }
     $('btn-back-from-shop').onclick = () => { updShopBtn(); show('home'); };
     updShopBtn(); setInterval(updShopBtn, 4000);
     $('btn-skill').onclick = () => { if (window.ArenaGame && ArenaGame.running) ArenaGame.useSkill(); };
@@ -977,10 +1001,10 @@
   // نافذة "الجديد" مرة واحدة بعد التحديث
   setTimeout(() => {
     try {
-      if (localStorage.getItem('arena_wn') === 'r78') return;
+      if (localStorage.getItem('arena_wn') === 'r79') return;
       const w = $('whatsnew'); if (!w || !$('screen-home').classList.contains('active')) return;
       w.classList.remove('hidden');
-      $('btn-wn-ok').onclick = () => { w.classList.add('hidden'); localStorage.setItem('arena_wn', 'r78'); };
+      $('btn-wn-ok').onclick = () => { w.classList.add('hidden'); localStorage.setItem('arena_wn', 'r79'); };
     } catch (e) { /* ignore */ }
   }, 3500);
 })();
