@@ -88,7 +88,7 @@
       this.myX = p.x; this.myY = p.y; this.myAngle = 0;
       this.myHp = MAX_HP; this.myAlive = true;
       this.lastHpShown = MAX_HP; this.muzzleUntil = 0; this.hitFlashUntil = 0;
-      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.rs = { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }; this.barrels = []; this.wave = 1; this.waveAt = 0; this.waveBanner = null; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.wasHole = false; this.specIdx = 0; this.mod = ''; this.ult = 0; this.meteors = []; this.icePools = []; this.up = { dmg: 0, spd: 0, rate: 0, steal: 0, arm: 0, drone: 0, boom: 0, chain: 0, life: 0 }; this._lifeUsed = 0; this.upDone = false; this.pickWait = false; this.hideUpgrades();
+      this.speedUntil = 0; this.shieldUntil = 0; this.weaponUntil = 0; this.weapon = ''; this.fx = []; this.gren = []; this.rs = { shots: 0, hits: 0, gren: 0, dash: 0, pick: 0, streak: 0 }; this.barrels = []; this.wave = 1; this.waveAt = 0; this.waveBanner = null; this.rings = []; this.grenCd = 0; this.bots = []; this.botCheckAt = 0; this.botAnnounced = false; this.shakeUntil = 0; this.wasHole = false; this.specIdx = 0; this.mod = ''; this.ult = 0; this.meteors = []; this.icePools = []; this.up = { dmg: 0, spd: 0, rate: 0, steal: 0, arm: 0, drone: 0, boom: 0, chain: 0, life: 0 }; this._lifeUsed = 0; this._metaDone = false; this.upDone = false; this.pickWait = false; this.hideUpgrades();
       this.protectedUntil = performance.now() + 2000; // حماية بداية الجولة
       this.writeSelf(true);
       this.onFeed('🗺️ ساحة ' + this.theme.name);
@@ -509,6 +509,7 @@
 
     spawnWave(nowB) {
       const wv = this.bossRush ? [1, 10, 15, 20, 25, 30, 35, 40, 45, 50][(this.wave - 1) % 10] : this.wave, sc = this.bossRush ? 1 + 0.3 * Math.floor((this.wave - 1) / 10) : 1;
+      if (this.wave === 1 && !this._metaDone) { this._metaDone = true; try { const mt = JSON.parse(localStorage.getItem('arena_meta') || '{}'); let tot = 0; for (const k of ['dmg', 'spd', 'rate', 'arm']) { const v = Math.min(5, mt[k] | 0); if (v) { this.up[k] += v; tot += v; } } if (tot) this.onFeed('⭐ تطويراتك الدائمة شغالة (+' + tot + ' مستوى)'); } catch (err) { /* ignore */ } }
       const MK = Object.keys(MODS);
       this.mod = this.wave >= 2 && !this.bossRush && this.wave % 5 !== 0 && Math.random() < 0.65 ? MK[Math.floor(Math.random() * MK.length)] : '';
       if (this.mod) { this.onFeed('🎲 تعديل الموجة: ' + MODS[this.mod].t); this.modBanner = { text: MODS[this.mod].t, until: performance.now() + 2600 }; }
